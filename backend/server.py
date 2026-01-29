@@ -2402,9 +2402,87 @@ async def learning_onboard(request: LearningOnboardRequest):
     try:
         profile_id = str(uuid.uuid4())
         
-        # Get industry-specific skill tree
+        # Get industry-specific skill tree OR generate custom one
         industry = request.industry or "software"
-        skill_tree = INDUSTRY_SKILL_TREES.get(industry, INDUSTRY_SKILL_TREES["software"])
+        
+        # Check if we have a predefined skill tree
+        if industry in INDUSTRY_SKILL_TREES:
+            skill_tree = INDUSTRY_SKILL_TREES[industry]
+        else:
+            # Generate custom skill tree using AI for ANY topic
+            logger.info(f"Generating custom skill tree for: {request.targetRole}")
+            skill_tree_prompt = f"""Create a comprehensive learning curriculum for: {request.targetRole}
+
+Generate a skill tree with 5-8 main topics, each with 3-5 subtopics.
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "name": "{request.targetRole} Curriculum",
+    "nodes": [
+        {{
+            "id": "topic_1",
+            "name": "Topic Name",
+            "level": "Beginner",
+            "estimatedTime": "4 weeks",
+            "status": "not_started",
+            "objective": "Clear learning objective",
+            "children": [
+                {{"id": "subtopic_1", "name": "Subtopic", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started"}},
+                {{"id": "subtopic_2", "name": "Subtopic 2", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started"}}
+            ]
+        }},
+        {{
+            "id": "topic_2",
+            "name": "Topic 2",
+            "level": "Intermediate",
+            "estimatedTime": "4 weeks",
+            "status": "not_started",
+            "children": [...]
+        }}
+    ]
+}}
+
+Make it comprehensive and industry-appropriate for: {request.targetRole}"""
+            
+            try:
+                chat = get_chat_instance("You are an expert curriculum designer.")
+                user_msg = UserMessage(text=skill_tree_prompt)
+                response = await chat.send_message(user_msg)
+                custom_tree = safe_parse_json(response, {
+                    "name": f"{request.targetRole} Curriculum",
+                    "nodes": [
+                        {
+                            "id": "basics",
+                            "name": f"{request.targetRole} Basics",
+                            "level": "Beginner",
+                            "estimatedTime": "4 weeks",
+                            "status": "not_started",
+                            "objective": f"Learn fundamentals of {request.targetRole}"
+                        },
+                        {
+                            "id": "intermediate",
+                            "name": "Intermediate Concepts",
+                            "level": "Intermediate",
+                            "estimatedTime": "6 weeks",
+                            "status": "not_started",
+                            "objective": "Build on foundational knowledge"
+                        },
+                        {
+                            "id": "advanced",
+                            "name": "Advanced Topics",
+                            "level": "Advanced",
+                            "estimatedTime": "8 weeks",
+                            "status": "not_started",
+                            "objective": "Master advanced concepts"
+                        }
+                    ]
+                })
+                skill_tree = custom_tree
+                logger.info(f"Generated custom skill tree with {len(custom_tree.get('nodes', []))} topics")
+            except Exception as e:
+                logger.error(f"Error generating custom skill tree: {e}")
+                # Fallback to software tree
+                skill_tree = INDUSTRY_SKILL_TREES["software"]
         
         # Generate career fit analysis using AI
         system_prompt = """You are an expert career advisor and curriculum designer.
