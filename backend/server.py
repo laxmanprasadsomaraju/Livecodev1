@@ -416,11 +416,24 @@ async def start_gateway_process(api_key: str, provider: str, owner_user_id: str)
     # Set gateway token for auth
     env["CLAWDBOT_GATEWAY_TOKEN"] = token
     
+    # Add persistent Node.js to PATH
+    env["PATH"] = f"{NODE_DIR}/bin:{CLAWDBOT_DIR}:{env.get('PATH', '')}"
+    
+    # Get clawdbot command
+    clawdbot_cmd = get_clawdbot_command()
+    if not clawdbot_cmd:
+        # Try to install
+        if not ensure_moltbot_installed():
+            raise HTTPException(status_code=500, detail="Moltbot (clawdbot) is not installed. Please contact support.")
+        clawdbot_cmd = get_clawdbot_command()
+        if not clawdbot_cmd:
+            raise HTTPException(status_code=500, detail="Failed to find clawdbot after installation")
+    
     # Start the gateway
-    logger.info(f"Starting Moltbot gateway on port {MOLTBOT_PORT}...")
+    logger.info(f"Starting Moltbot gateway on port {MOLTBOT_PORT} using {clawdbot_cmd}...")
     
     process = subprocess.Popen(
-        ["clawdbot", "gateway", "--port", str(MOLTBOT_PORT), "--bind", "lan", "--token", token, "--allow-unconfigured"],
+        [clawdbot_cmd, "gateway", "--port", str(MOLTBOT_PORT), "--bind", "lan", "--token", token, "--allow-unconfigured"],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
