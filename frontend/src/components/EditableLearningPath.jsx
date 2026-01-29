@@ -323,7 +323,10 @@ const EditableLearningPath = ({ skillTree, userProfile, onUpdateTree, onTopicCli
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center gap-2 cursor-pointer hover:text-[#667eea] transition-colors"
+              onClick={() => onTopicClick && onTopicClick(node)}
+            >
               <span className="font-medium text-sm">{node.name}</span>
               {hasVideo && (
                 <div className="flex items-center gap-1 px-2 py-0.5 bg-[#EA4335]/20 rounded text-xs text-[#EA4335]">
