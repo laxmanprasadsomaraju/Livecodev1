@@ -1112,6 +1112,7 @@ const RoadmapPhase = ({ skillTree, setSkillTree, weeklyPlan, progress, userProfi
           skillTree={skillTree}
           userProfile={userProfile}
           onUpdateTree={handleUpdateTree}
+          onTopicClick={onStartTopic}
         />
       </div>
 
