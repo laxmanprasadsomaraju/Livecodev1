@@ -131,17 +131,20 @@ Exit Criteria (Phase 2):
 - ✅ Status check on page load
 - ✅ Redirect to Moltbot Control UI with token authentication after successful start
 
-### WebSocket Proxy Solution:
-- Gateway binds to `lan` mode with token authentication
-- HTML injection rewrites WebSocket URLs to use our proxy path
-- Token is passed via `?gatewayUrl=...&token=...` URL params which Control UI reads
-- Control UI now connects successfully and shows "Health: OK"
+### Phase 3: Authentication - COMPLETED
+- ✅ Emergent Google Auth integration
+- ✅ User model with MongoDB (users, user_sessions collections)
+- ✅ Auth endpoints: /api/auth/session, /api/auth/me, /api/auth/logout
+- ✅ Session management with httpOnly cookies (7-day expiry)
+- ✅ Login page with "Sign in with Google" button
+- ✅ Protected routes - unauthenticated users redirect to /login
+- ✅ Moltbot ownership - only the user who started can access/stop
+- ✅ Shows "in use" message to other users when someone else owns the instance
 
-### Testing: PASSED
-- Backend: All endpoints working correctly
-- Frontend: All UI features working correctly
-- WebSocket: Connected and authenticated successfully
-- Control UI: Full functionality available (Chat, Config, Channels, etc.)
+### Testing: PASSED 100%
+- Backend: All auth and Moltbot endpoints working correctly
+- Frontend: Login flow, protected routes, ownership display working
+- Integration: Cookie auth, Bearer token fallback, ownership tracking working
 
 ## Success Criteria
 - From the preview URL, a user can:
