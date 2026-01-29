@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import VideoLearningModal from "./VideoLearningModal";
 import EditableLearningPath from "./EditableLearningPath";
+import TopicDetailView from "./TopicDetailView";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
