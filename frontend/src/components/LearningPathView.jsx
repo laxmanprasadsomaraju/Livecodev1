@@ -406,7 +406,7 @@ const LearningPathView = () => {
           weeklyPlan={weeklyPlan}
           progress={progress}
           userProfile={userProfile}
-          onStartTopic={startTopic}
+          onStartTopic={openTopicDetail}
           onViewDashboard={() => setPhase("dashboard")}
           onGoHome={resetToHome}
           xp={xp}
@@ -432,6 +432,17 @@ const LearningPathView = () => {
           />
         )}
       </>
+    );
+  }
+
+  if (phase === "topicDetail") {
+    return (
+      <TopicDetailView
+        topic={currentTopic}
+        userProfile={userProfile}
+        onBack={() => setPhase("roadmap")}
+        onUpdateTopic={handleUpdateTopicFromDetail}
+      />
     );
   }
 
