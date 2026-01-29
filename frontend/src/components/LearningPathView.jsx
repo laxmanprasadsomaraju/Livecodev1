@@ -39,7 +39,7 @@ const BADGES = [
 ];
 
 const LearningPathView = () => {
-  const [phase, setPhase] = useState("onboarding"); // onboarding, roadmap, learning, dashboard
+  const [phase, setPhase] = useState("onboarding"); // onboarding, roadmap, learning, dashboard, topicDetail
   const [userProfile, setUserProfile] = useState(null);
   const [skillTree, setSkillTree] = useState(null);
   const [weeklyPlan, setWeeklyPlan] = useState(null);
