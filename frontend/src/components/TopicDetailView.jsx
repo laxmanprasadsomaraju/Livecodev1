@@ -260,56 +260,53 @@ const TopicDetailView = ({ topic, userProfile, onBack, onUpdateTopic }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/learning/visual-explanation`, {
+      // Use the mentor endpoint with a request for visual/structured explanation
+      const response = await fetch(`${BACKEND_URL}/api/learning/mentor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: topic.name,
-          skill_level: userProfile?.experience || "intermediate",
-          context: messages.slice(-3).map(m => m.content).join('\n')
+          message: `Please provide a detailed, VISUAL and STRUCTURED explanation of ${topic.name}. Include:
+
+## 🎯 Core Concept
+Clear definition with analogy
+
+## 📊 Visual Breakdown
+Step-by-step breakdown with clear structure
+
+## 💡 Key Points
+Important things to remember
+
+## 🔄 How It Works
+Process or workflow explanation
+
+## ✨ Real-World Examples
+Practical applications
+
+## 🚀 Next Steps
+What to learn next
+
+Use emojis, markdown formatting, bullet points, and clear sections to make it visually engaging.`,
+          topic: topic,
+          user_profile: userProfile,
+          conversation_history: messages.slice(-3).map(m => ({ role: m.role, content: m.content }))
         })
       });
 
-      if (!response.ok) throw new Error("Failed to generate visual");
+      if (!response.ok) throw new Error("Failed to generate explanation");
 
       const data = await response.json();
       
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: data.explanation,
-        visual: data.diagram || data.mermaid_code
+        content: data.response
       }]);
 
     } catch (error) {
-      // Fallback: just ask for a detailed explanation with bullet points
+      toast.error("Failed to generate visual explanation");
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: `Let me explain ${topic.name} visually:\n\n## 📊 Concept Breakdown\n\n[Requesting detailed visual explanation...]\n\nI'll provide a structured breakdown with diagrams. One moment...`
+        content: "Sorry, I encountered an error generating the visual explanation. Please try asking again."
       }]);
-      
-      // Make a regular mentor call for detailed explanation
-      setTimeout(async () => {
-        try {
-          const fallbackResponse = await fetch(`${BACKEND_URL}/api/learning/mentor`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: `Please provide a detailed, structured visual explanation of ${topic.name} with step-by-step breakdown, analogies, and examples. Use markdown formatting with headers, bullet points, and emojis to make it visual.`,
-              topic: topic,
-              user_profile: userProfile,
-              conversation_history: []
-            })
-          });
-          
-          const fallbackData = await fallbackResponse.json();
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: fallbackData.response
-          }]);
-        } catch (err) {
-          console.error("Fallback explanation error:", err);
-        }
-      }, 500);
     } finally {
       setIsLoading(false);
     }
