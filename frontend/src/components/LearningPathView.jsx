@@ -243,6 +243,35 @@ const LearningPathView = () => {
     }]);
   };
 
+  // Open topic detail view (NEW)
+  const openTopicDetail = (topic) => {
+    setCurrentTopic(topic);
+    setPhase("topicDetail");
+  };
+
+  // Update topic from detail view (e.g., when video is added)
+  const handleUpdateTopicFromDetail = (updatedTopic) => {
+    const updatedNodes = [...(skillTree?.nodes || [])];
+    
+    const updateInTree = (nodes, topicId, updates) => {
+      for (let node of nodes) {
+        if (node.id === topicId) {
+          Object.assign(node, updates);
+          return true;
+        }
+        if (node.children && updateInTree(node.children, topicId, updates)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    
+    updateInTree(updatedNodes, updatedTopic.id, updatedTopic);
+    setSkillTree({ ...skillTree, nodes: updatedNodes });
+    setCurrentTopic(updatedTopic);
+    toast.success("Topic updated!");
+  };
+
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
