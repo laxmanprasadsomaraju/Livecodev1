@@ -11,7 +11,7 @@ import VideoLearningModal from "./VideoLearningModal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-const EditableLearningPath = ({ skillTree, userProfile, onUpdateTree }) => {
+const EditableLearningPath = ({ skillTree, userProfile, onUpdateTree, onTopicClick }) => {
   const [expandedNodes, setExpandedNodes] = useState(new Set(["root"]));
   const [editingNode, setEditingNode] = useState(null);
   const [addingToNode, setAddingToNode] = useState(null);
