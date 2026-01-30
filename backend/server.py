@@ -3493,182 +3493,82 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Scrape REAL news from actual websites"""
+    """Use Gemini to research and find real news"""
     try:
-        from bs4 import BeautifulSoup
+        # Search query
+        search_query = query or f"latest {category} news"
         
-        all_articles = []
+        # Use regular Gemini chat (not MOLTBOT - budget issue)
+        system_prompt = f"""You are a news researcher with web search access.
+
+TASK: Search the web RIGHT NOW for latest news articles about: {search_query}
+
+CRITICAL:
+1. Use web search to find REAL recent articles
+2. Visit TechCrunch, The Verge, Wired, Reuters
+3. Get ACTUAL article titles and URLs
+4. Verify URLs work
+
+RETURN ONLY THIS JSON (nothing else):
+{{
+    "articles": [
+        {{
+            "title": "Real article title from website",
+            "summary": "2-3 sentence summary",
+            "url": "https://real-url.com/article",
+            "source": "TechCrunch"
+        }}
+    ]
+}}
+
+Find 8-10 recent articles. Search web now."""
         
-        # Source 1: TechCrunch AI Category
-        logger.info("Scraping TechCrunch AI...")
-        try:
-            response = requests.get(
-                "https://techcrunch.com/category/artificial-intelligence/",
-                timeout=10,
-                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            )
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        user_msg = UserMessage(text=f"Search web for: {search_query}\n\nReturn ONLY the JSON array.")
+        response = await chat.send_message(user_msg)
+        
+        logger.info(f"Gemini response received, length: {len(response)}")
+        
+        # Parse JSON
+        data = safe_parse_json(response, {"articles": []})
+        articles = data.get("articles", [])
+        
+        # If no articles in JSON, try to extract URLs from markdown
+        if not articles:
+            import re
+            # Extract markdown links
+            url_pattern = r'\[([^\]]+)\]\((https://[^\)]+)\)'
+            matches = re.findall(url_pattern, response)
             
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Find article links
-                articles = soup.find_all('a', href=True, limit=15)
-                
-                for article_tag in articles:
-                    url = article_tag['href']
-                    
-                    # Only TechCrunch article URLs
-                    if 'techcrunch.com/2026' in url or 'techcrunch.com/2025' in url:
-                        # Extract title
-                        title_elem = article_tag.find(['h2', 'h3']) or article_tag
-                        title = title_elem.get_text().strip()
-                        
-                        if len(title) > 20:
-                            # Try to get summary by visiting article
-                            summary = "Latest TechCrunch article"
-                            try:
-                                article_response = requests.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
-                                if article_response.status_code == 200:
-                                    article_soup = BeautifulSoup(article_response.content, 'html.parser')
-                                    
-                                    # Get meta description
-                                    meta_desc = article_soup.find('meta', {'name': 'description'})
-                                    if meta_desc and meta_desc.get('content'):
-                                        summary = meta_desc['content'][:300]
-                                    else:
-                                        # Try to get first paragraph
-                                        first_p = article_soup.find('p')
-                                        if first_p:
-                                            summary = first_p.get_text().strip()[:300]
-                            except:
-                                pass
-                            
-                            all_articles.append({
-                                "id": str(uuid.uuid4()),
-                                "title": title,
-                                "summary": summary,
-                                "url": url,
-                                "source": "TechCrunch",
-                                "category": "ai",
-                                "publishedAt": datetime.now(timezone.utc).isoformat(),
-                                "verified": True
-                            })
-                            
-                            if len(all_articles) >= 5:
-                                break
-                
-                logger.info(f"Found {len(all_articles)} TechCrunch articles")
-        except Exception as e:
-            logger.error(f"TechCrunch scraping error: {e}")
+            for title, url in matches[:10]:
+                articles.append({
+                    "title": title,
+                    "summary": "Latest news article",
+                    "url": url,
+                    "source": "News"
+                })
         
-        # Source 2: AI News website
-        logger.info("Scraping AI News...")
-        try:
-            response = requests.get(
-                "https://www.artificialintelligence-news.com/",
-                timeout=10,
-                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            )
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Find article links
-                articles = soup.find_all('a', href=True, limit=20)
-                
-                for article_tag in articles:
-                    url = article_tag['href']
-                    
-                    # Make URL absolute
-                    if url.startswith('/'):
-                        url = f"https://www.artificialintelligence-news.com{url}"
-                    
-                    # Only article URLs
-                    if 'artificialintelligence-news.com' in url and url != "https://www.artificialintelligence-news.com/":
-                        title_elem = article_tag.get_text().strip()
-                        
-                        if len(title_elem) > 20 and len(title_elem) < 200:
-                            all_articles.append({
-                                "id": str(uuid.uuid4()),
-                                "title": title_elem,
-                                "summary": "Latest AI news and insights",
-                                "url": url,
-                                "source": "AI News",
-                                "category": "ai",
-                                "publishedAt": datetime.now(timezone.utc).isoformat(),
-                                "verified": True
-                            })
-                            
-                            if len(all_articles) >= 10:
-                                break
-                
-                logger.info(f"Total articles now: {len(all_articles)}")
-        except Exception as e:
-            logger.error(f"AI News scraping error: {e}")
+        # Add required fields
+        for article in articles:
+            article["id"] = str(uuid.uuid4())
+            article["category"] = category
+            article["publishedAt"] = datetime.now(timezone.utc).isoformat()
+            article["verified"] = True
         
-        # Source 3: Product Hunt (if not enough articles)
-        if len(all_articles) < 8:
-            logger.info("Scraping Product Hunt...")
-            try:
-                response = requests.get(
-                    "https://www.producthunt.com/",
-                    timeout=10,
-                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                )
-                
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'html.parser')
-                    
-                    # Find product links
-                    links = soup.find_all('a', href=True, limit=20)
-                    
-                    for link in links:
-                        url = link['href']
-                        
-                        # Make URL absolute
-                        if url.startswith('/posts/'):
-                            url = f"https://www.producthunt.com{url}"
-                            
-                            title = link.get_text().strip()
-                            
-                            if len(title) > 15 and len(title) < 200:
-                                all_articles.append({
-                                    "id": str(uuid.uuid4()),
-                                    "title": title,
-                                    "summary": "New product launch on Product Hunt",
-                                    "url": url,
-                                    "source": "Product Hunt",
-                                    "category": "tech",
-                                    "publishedAt": datetime.now(timezone.utc).isoformat(),
-                                    "verified": True
-                                })
-                                
-                                if len(all_articles) >= 12:
-                                    break
-                
-                logger.info(f"Total articles now: {len(all_articles)}")
-            except Exception as e:
-                logger.error(f"Product Hunt scraping error: {e}")
+        # Filter valid URLs
+        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"] and "#" not in a["url"]]
         
-        # Remove duplicates by URL
-        seen_urls = set()
-        unique_articles = []
-        for article in all_articles:
-            if article['url'] not in seen_urls:
-                seen_urls.add(article['url'])
-                unique_articles.append(article)
-        
-        logger.info(f"Returning {len(unique_articles)} unique articles")
+        logger.info(f"Returning {len(valid_articles)} articles")
         
         return {
-            "articles": unique_articles[:10],  # Max 10 articles
-            "query": query or category,
-            "source": "real_web_scraping"
+            "articles": valid_articles,
+            "query": search_query,
+            "source": "gemini_research"
         }
         
     except Exception as e:
-        logger.error(f"News scraping error: {e}", exc_info=True)
-        return {"articles": [], "query": category, "error": str(e)}
+        logger.error(f"News error: {e}", exc_info=True)
+        return {"articles": [], "query": query or category, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
