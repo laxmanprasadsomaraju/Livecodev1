@@ -512,3 +512,63 @@ agent_communication:
     message: "🚀 FIXED & ENHANCED - January 29, 2026: 1) FIXED BACKEND CRASH: Installed missing dependencies (pyee==12.0.0, greenlet==3.1.1) for Playwright integration. Backend now starts correctly. 2) ENHANCED ONBOARDING: AI-powered custom curriculum generation for ANY topic/course! If user enters random course name (not in predefined industries), AI now generates comprehensive skill tree with 5-8 main topics and subtopics. Works for Data Analytics, or ANY custom topic user enters. 3) FALLBACK SAFETY: If AI generation fails, system falls back to software curriculum as default. All services running smoothly!"
   - agent: "main"
     message: "🎯 ADVANCED AI FEATURES - January 29, 2026: Implemented NEXT-LEVEL intelligence for learning system! 1) ENHANCED IMAGE ANALYSIS: Fixed and supercharged screenshot/image understanding in chat - AI now DEEPLY analyzes images with specific element identification, step-by-step breakdowns, and topic connection. System prompt optimized for detailed visual analysis. 2) NEW BACKEND ENDPOINTS: Added 7 powerful endpoints - /api/learning/video/adaptive-quiz (context-aware quizzes based on video progress), /api/learning/video/wrong-answer-feedback (empathetic feedback + follow-up questions), /api/learning/video/enhanced-help (4 help types with full transcript context), /api/learning/visual-explanation (structured visual breakdowns). 3) DOMAIN-SPECIFIC EXPERTISE: Smart curriculum generation detects domain (cooking, medical, art, music, fitness, language, business, photography, writing) and uses specialized expert prompts for authentic, industry-appropriate curricula. 4) ADAPTIVE QUIZ SYSTEM: Generates quizzes based on what's been covered SO FAR, emphasizes topics user struggled with, creates follow-up questions when wrong answers given. 5) TRUE CONTEXT AWARENESS: AI now knows EXACTLY what's been explained in video up to current timestamp using full transcript analysis. Not faking - REAL intelligence! Ready for pro-level learning!"
+  - agent: "main"
+    message: "📄 CV INTELLIGENCE & INTERVIEW MENTOR - Phase 1 MVP - January 30, 2026: Implemented new CV tab with core features: 1) CV UPLOAD & PARSING: Supports PDF, DOCX, LaTeX, and TXT files. Uses pdfplumber for PDF, python-docx for DOCX. AI-powered section detection (Experience, Education, Skills, Projects, Summary, Certifications). 2) INTERACTIVE CV EDITOR: Click any section to edit with AI. Popup modal with 'What do you want to change and why?' input. AI generates edit suggestions while preserving formatting and LaTeX validity. Apply/reject edits with preview. 3) ROLE & COMPANY ANALYSIS: Enter target role + company name + optional job description. AI analyzes CV against requirements with brutal honesty. Returns: match score %, missing keywords, skill gaps (with priority and learning time), experience gaps (with supportive advice), strengths, recommendations. 4) GAP HANDLING: 'Can Add Truthfully' suggestions, 'Do NOT Fake' warnings, mentor-style advice. 5) COMPANY RESEARCH: Auto-research company values, culture, interview tips, common questions. 6) NEW BACKEND ENDPOINTS: POST /api/cv/upload, GET /api/cv/{cv_id}, POST /api/cv/edit, POST /api/cv/analyze, POST /api/cv/company-research, POST /api/cv/update-section. 7) BEAUTIFUL UI: Glass morphism design, gradient backgrounds, section-specific icons and colors, loading states, error handling. Please test Phase 1 endpoints!"
+
+  - task: "CV Upload and Parse API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/cv/upload endpoint. Supports PDF (pdfplumber), DOCX (python-docx), LaTeX, and TXT files. AI-powered section parsing using Gemini."
+
+  - task: "CV Edit API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/cv/edit endpoint. AI-powered editing with LaTeX preservation. Returns original text, edited text, explanation, and changes summary."
+
+  - task: "CV Analyze/Gap Analysis API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/cv/analyze endpoint. Comprehensive gap analysis with match score, missing keywords, skill gaps, experience gaps, strengths, honest additions, do-not-fake warnings, and mentor advice."
+
+  - task: "Company Research API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/cv/company-research endpoint. Returns company info, culture insights, interview tips, common questions, values, and similar roles."
+
+test_plan:
+  current_focus:
+    - "CV Upload and Parse API"
+    - "CV Edit API"
+    - "CV Analyze/Gap Analysis API"
+    - "Company Research API"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
