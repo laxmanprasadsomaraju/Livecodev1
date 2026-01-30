@@ -3513,7 +3513,8 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
                 "https://dev.to/feed",
             ],
             "startups": [
-                "https://techcrunch.com/category/startups/feed/"
+                "https://techcrunch.com/category/startups/feed/",
+                "https://news.ycombinator.com/rss"
             ]
         }
         
