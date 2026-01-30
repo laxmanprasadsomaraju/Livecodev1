@@ -31,6 +31,8 @@ function App() {
               <div className="max-w-4xl mx-auto">
                 <AINewsFeed />
               </div>
+            ) : mode === "cv" ? (
+              <CVIntelligenceView />
             ) : mode === "ide" ? (
               <IDEView />
             ) : mode === "code" ? (
