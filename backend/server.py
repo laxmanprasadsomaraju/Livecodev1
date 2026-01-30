@@ -6329,6 +6329,9 @@ async def update_cv_section(cv_id: str = Form(...), section_id: str = Form(...),
         logger.error(f"Update section error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Include the CV endpoints router (they were defined after the first include)
+app.include_router(api_router)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
