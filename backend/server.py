@@ -3492,99 +3492,182 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Use MOLTBOT research mode for news"""
+    """Scrape REAL news from actual websites"""
     try:
-        # Search query
-        if query:
-            search_text = query
-        elif category == "ai":
-            search_text = "AI artificial intelligence"
-        elif category == "tech":
-            search_text = "technology"
-        elif category == "coding":
-            search_text = "programming coding"
-        elif category == "startups":
-            search_text = "startups funding"
-        else:
-            search_text = category
+        from bs4 import BeautifulSoup
         
-        # Call MOLTBOT - it returns formatted text with URLs
-        moltbot_request = MoltbotChatRequest(
-            message=f"""Find 10 latest {search_text} news articles.
-
-For each article provide:
-- Title
-- Summary (2 sentences)
-- URL (real working link)
-- Source name
-
-Format as JSON array:
-[
-  {{"title": "...", "summary": "...", "url": "https://...", "source": "..."}},
-  ...
-]
-
-Only return the JSON array, nothing else.""",
-            agent_mode="research",
-            session_id=str(uuid.uuid4()),
-            thinking_mode="normal",
-            skill_level="expert"
-        )
+        all_articles = []
         
-        # Call MOLTBOT
-        moltbot_response = await moltbot_chat(moltbot_request)
-        response_text = moltbot_response["response"]
-        
-        logger.info(f"MOLTBOT response length: {len(response_text)}")
-        
-        # Try to extract JSON from response
-        articles = []
-        
-        # Look for JSON array in response
-        import re
-        json_match = re.search(r'\[[\s\S]*\]', response_text)
-        if json_match:
-            json_str = json_match.group(0)
-            try:
-                articles = json.loads(json_str)
-            except:
-                logger.error("Failed to parse JSON from MOLTBOT")
-        
-        # If no JSON found, try to parse markdown/text
-        if not articles:
-            # Extract URLs from markdown links
-            url_pattern = r'\[(.*?)\]\((https://.*?)\)'
-            matches = re.findall(url_pattern, response_text)
+        # Source 1: TechCrunch AI Category
+        logger.info("Scraping TechCrunch AI...")
+        try:
+            response = requests.get(
+                "https://techcrunch.com/category/artificial-intelligence/",
+                timeout=10,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            )
             
-            for title, url in matches[:10]:
-                articles.append({
-                    "title": title,
-                    "summary": "Latest news article",
-                    "url": url,
-                    "source": "News"
-                })
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Find article links
+                articles = soup.find_all('a', href=True, limit=15)
+                
+                for article_tag in articles:
+                    url = article_tag['href']
+                    
+                    # Only TechCrunch article URLs
+                    if 'techcrunch.com/2026' in url or 'techcrunch.com/2025' in url:
+                        # Extract title
+                        title_elem = article_tag.find(['h2', 'h3']) or article_tag
+                        title = title_elem.get_text().strip()
+                        
+                        if len(title) > 20:
+                            # Try to get summary by visiting article
+                            summary = "Latest TechCrunch article"
+                            try:
+                                article_response = requests.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
+                                if article_response.status_code == 200:
+                                    article_soup = BeautifulSoup(article_response.content, 'html.parser')
+                                    
+                                    # Get meta description
+                                    meta_desc = article_soup.find('meta', {'name': 'description'})
+                                    if meta_desc and meta_desc.get('content'):
+                                        summary = meta_desc['content'][:300]
+                                    else:
+                                        # Try to get first paragraph
+                                        first_p = article_soup.find('p')
+                                        if first_p:
+                                            summary = first_p.get_text().strip()[:300]
+                            except:
+                                pass
+                            
+                            all_articles.append({
+                                "id": str(uuid.uuid4()),
+                                "title": title,
+                                "summary": summary,
+                                "url": url,
+                                "source": "TechCrunch",
+                                "category": "ai",
+                                "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                "verified": True
+                            })
+                            
+                            if len(all_articles) >= 5:
+                                break
+                
+                logger.info(f"Found {len(all_articles)} TechCrunch articles")
+        except Exception as e:
+            logger.error(f"TechCrunch scraping error: {e}")
         
-        # Add required fields
-        for article in articles:
-            article["id"] = str(uuid.uuid4())
-            article["category"] = category
-            article["publishedAt"] = datetime.now(timezone.utc).isoformat()
-            article["verified"] = True
+        # Source 2: AI News website
+        logger.info("Scraping AI News...")
+        try:
+            response = requests.get(
+                "https://www.artificialintelligence-news.com/",
+                timeout=10,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            )
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Find article links
+                articles = soup.find_all('a', href=True, limit=20)
+                
+                for article_tag in articles:
+                    url = article_tag['href']
+                    
+                    # Make URL absolute
+                    if url.startswith('/'):
+                        url = f"https://www.artificialintelligence-news.com{url}"
+                    
+                    # Only article URLs
+                    if 'artificialintelligence-news.com' in url and url != "https://www.artificialintelligence-news.com/":
+                        title_elem = article_tag.get_text().strip()
+                        
+                        if len(title_elem) > 20 and len(title_elem) < 200:
+                            all_articles.append({
+                                "id": str(uuid.uuid4()),
+                                "title": title_elem,
+                                "summary": "Latest AI news and insights",
+                                "url": url,
+                                "source": "AI News",
+                                "category": "ai",
+                                "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                "verified": True
+                            })
+                            
+                            if len(all_articles) >= 10:
+                                break
+                
+                logger.info(f"Total articles now: {len(all_articles)}")
+        except Exception as e:
+            logger.error(f"AI News scraping error: {e}")
         
-        # Filter valid URLs
-        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"]]
+        # Source 3: Product Hunt (if not enough articles)
+        if len(all_articles) < 8:
+            logger.info("Scraping Product Hunt...")
+            try:
+                response = requests.get(
+                    "https://www.producthunt.com/",
+                    timeout=10,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Find product links
+                    links = soup.find_all('a', href=True, limit=20)
+                    
+                    for link in links:
+                        url = link['href']
+                        
+                        # Make URL absolute
+                        if url.startswith('/posts/'):
+                            url = f"https://www.producthunt.com{url}"
+                            
+                            title = link.get_text().strip()
+                            
+                            if len(title) > 15 and len(title) < 200:
+                                all_articles.append({
+                                    "id": str(uuid.uuid4()),
+                                    "title": title,
+                                    "summary": "New product launch on Product Hunt",
+                                    "url": url,
+                                    "source": "Product Hunt",
+                                    "category": "tech",
+                                    "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                    "verified": True
+                                })
+                                
+                                if len(all_articles) >= 12:
+                                    break
+                
+                logger.info(f"Total articles now: {len(all_articles)}")
+            except Exception as e:
+                logger.error(f"Product Hunt scraping error: {e}")
         
-        logger.info(f"Found {len(valid_articles)} articles from MOLTBOT")
+        # Remove duplicates by URL
+        seen_urls = set()
+        unique_articles = []
+        for article in all_articles:
+            if article['url'] not in seen_urls:
+                seen_urls.add(article['url'])
+                unique_articles.append(article)
+        
+        logger.info(f"Returning {len(unique_articles)} unique articles")
         
         return {
-            "articles": valid_articles,
-            "query": search_text,
-            "source": "moltbot"
+            "articles": unique_articles[:10],  # Max 10 articles
+            "query": query or category,
+            "source": "real_web_scraping"
         }
         
     except Exception as e:
-        logger.error(f"MOLTBOT news error: {e}", exc_info=True)
-        return {"articles": [], "query": search_text or category, "error": str(e)}
+        logger.error(f"News scraping error: {e}", exc_info=True)
+        return {"articles": [], "query": category, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
