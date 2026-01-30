@@ -3588,74 +3588,76 @@ Find real articles published in last 14 days. Quality over quantity."""
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
-    """Fetch and summarize a specific news article using MOLTBOT web scraping"""
+    """Fetch and summarize a specific news article using Gemini web grounding"""
     try:
         url = request.get("url")
         if not url or url == "#":
             raise HTTPException(status_code=400, detail="Invalid URL")
         
-        # Use MOLTBOT to scrape and summarize the actual article
-        moltbot_request = {
-            "message": f"""Scrape and analyze this article URL: {url}
+        # Use Gemini with web grounding to fetch and analyze article
+        system_prompt = f"""You are a professional tech news analyst with web access.
 
-TASK:
-1. Fetch the REAL content from the URL
-2. Read the full article text
-3. Extract key information
+TASK: Analyze this article URL: {url}
 
-Provide a comprehensive analysis as JSON:
+CRITICAL REQUIREMENTS:
+1. Use web access to FETCH the actual article content from the URL
+2. READ the full article text
+3. Extract and analyze all key information
+4. Provide comprehensive summary
+
+RESPONSE FORMAT (VALID JSON ONLY):
 {{
-    "title": "Actual article title from page",
-    "summary": "Comprehensive 4-5 sentence summary of main points",
-    "key_points": ["Key point 1 with details", "Key point 2", "Key point 3", "Key point 4"],
-    "main_topic": "Primary topic/theme",
-    "technologies_mentioned": ["Tech 1", "Tech 2"],
+    "title": "Actual article title from the page",
+    "summary": "Comprehensive 4-5 sentence summary covering main points, findings, and implications",
+    "key_points": [
+        "Key point 1 with specific details",
+        "Key point 2 with context",
+        "Key point 3 with implications",
+        "Key point 4 with numbers/data if available"
+    ],
+    "main_topic": "Primary topic or theme",
+    "technologies_mentioned": ["Technology 1", "Technology 2", "Technology 3"],
     "companies_mentioned": ["Company 1", "Company 2"],
-    "reading_time": "X min",
-    "full_content": "Detailed summary of all sections",
-    "takeaways": ["Takeaway 1", "Takeaway 2", "Takeaway 3"]
+    "reading_time": "5 min",
+    "full_content": "Detailed 2-3 paragraph analysis covering all major sections and points from the article",
+    "takeaways": [
+        "Key takeaway 1 - what you should know",
+        "Key takeaway 2 - why it matters",
+        "Key takeaway 3 - future implications"
+    ]
 }}
 
-Be thorough - this will be shown to the user as a detailed analysis.""",
-            "mode": "research",
-            "session_id": str(uuid.uuid4()),
-            "thinking_mode": "senior-engineer"
-        }
+Be thorough and accurate - extract real information from the article."""
         
-        # Call MOLTBOT for deep article analysis
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            moltbot_response = await client.post(
-                f"{BACKEND_URL}/api/moltbot/chat",
-                json=moltbot_request
-            )
-            
-            if moltbot_response.status_code == 200:
-                moltbot_data = moltbot_response.json()
-                response_text = moltbot_data.get("response", "{}")
-                
-                # Parse structured response
-                data = safe_parse_json(response_text, {
-                    "title": "Article Summary",
-                    "summary": "Content analysis in progress...",
-                    "key_points": [],
-                    "full_content": response_text
-                })
-                
-                data["url"] = url
-                data["analyzed_by"] = "moltbot"
-                
-                return data
-            else:
-                raise Exception("MOLTBOT analysis failed")
+        # Use Gemini pro for better analysis
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        user_msg = UserMessage(text=f"Fetch and analyze this article NOW: {url}\n\nReturn ONLY valid JSON.")
+        response = await chat.send_message(user_msg)
+        
+        # Parse response
+        data = safe_parse_json(response, {
+            "title": "Article Summary",
+            "summary": "Analysis in progress...",
+            "key_points": [],
+            "full_content": response
+        })
+        
+        data["url"] = url
+        data["analyzed_by"] = "gemini_web_grounding"
+        
+        logger.info(f"Successfully analyzed article: {url[:50]}...")
+        
+        return data
         
     except Exception as e:
-        logger.error(f"Article summary error: {e}")
+        logger.error(f"Article summary error: {e}", exc_info=True)
         return {
             "title": "Article Summary",
-            "summary": "Unable to fetch article content. The URL may be protected or unavailable.",
-            "key_points": ["Content access limited"],
+            "summary": "Unable to fetch article content. The URL may be protected, paywalled, or require authentication. Try visiting the original website.",
+            "key_points": ["Content access limited", "Original article link available below"],
             "error": str(e),
-            "url": url
+            "url": url,
+            "full_content": "This article content could not be accessed automatically. Please visit the original website using the 'Read Full Article' button below."
         }
 
 # Flight Price Search for Travel Agent
