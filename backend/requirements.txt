@@ -134,3 +134,6 @@ greenlet==3.1.1
 googlesearch-python
 newsapi-python
 feedparser
+pdfplumber==0.11.4
+python-docx==1.1.2
+PyPDF2==3.0.1
