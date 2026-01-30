@@ -3574,8 +3574,8 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
                 logger.error(f"Error parsing feed {feed_url}: {e}")
                 continue
         
-        # If startups category, also scrape Product Hunt and Y Combinator
-        if category == "startups" and len(all_articles) < 10:
+        # If startups OR products category, also scrape Product Hunt
+        if category in ["startups", "products"] and len(all_articles) < 10:
             logger.info("Scraping Product Hunt for startups...")
             try:
                 from bs4 import BeautifulSoup
