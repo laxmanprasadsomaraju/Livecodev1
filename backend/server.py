@@ -3492,82 +3492,99 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Search for REAL news using MOLTBOT deep research with web scraping"""
+    """Search for REAL news using Gemini with web grounding"""
     try:
-        # Use MOLTBOT research agent for REAL news
-        search_query = query or f"latest {category} AI technology news breakthroughs"
+        # Use Gemini with web grounding for REAL news search
+        search_query = query or f"latest {category} AI technology news 2026"
         
-        # Call MOLTBOT in research mode for deep web research
-        moltbot_request = {
-            "message": f"""Find 8-10 REAL, RECENT news articles about: {search_query}
+        system_prompt = f"""You are a tech news researcher with REAL-TIME web access.
+
+TASK: Find 8-10 REAL, RECENT news articles about: {category} technology
 
 CRITICAL REQUIREMENTS:
-1. Use web search to find ACTUAL articles from these sources:
-   - TechCrunch, The Verge, Wired, ArsTechnica
-   - VentureBeat, MIT Technology Review
-   - LinkedIn (tech leaders posts)
+1. Use your web search capability to find ACTUAL published articles
+2. Search these sources:
+   - TechCrunch (techcrunch.com)
+   - The Verge (theverge.com) 
+   - Wired (wired.com)
+   - ArsTechnica (arstechnica.com)
+   - VentureBeat (venturebeat.com)
+   - MIT Technology Review
+   - Bloomberg Technology
+   - Reuters Technology
    - Google News
-   - Bloomberg Technology, Reuters Tech
+   
+3. For EACH article:
+   - REAL working URL (verify it exists!)
+   - Actual article title from the page
+   - 2-3 sentence summary of actual content
+   - Publication date (last 14 days preferred)
+   - Source name
+   
+4. DO NOT make up URLs - only include if you can verify
 
-2. For EACH article found:
-   - Get the REAL, WORKING URL (verify it's not 404)
-   - Extract the actual title from the page
-   - Get 2-3 sentence summary of ACTUAL content
-   - Note publication date (last 14 days preferred)
-   - Get author if available
+RESPONSE FORMAT (VALID JSON ONLY):
+{{
+    "articles": [
+        {{
+            "id": "unique_id",
+            "title": "Actual Article Title from Website",
+            "summary": "Real 2-3 sentence summary of article content",
+            "source": "Source name (e.g. TechCrunch)",
+            "url": "REAL working URL - https://...",
+            "category": "{category}",
+            "publishedAt": "2026-01-30T12:00:00Z or ISO date",
+            "verified": true
+        }}
+    ]
+}}
 
-3. Quality over quantity - only include if URL works
-
-Return as structured JSON array of articles.""",
-            "mode": "research",  # Research mode for deep web scraping
-            "session_id": str(uuid.uuid4()),
-            "thinking_mode": "senior-engineer"
+Find real articles published in last 14 days. Quality over quantity."""
+        
+        # Use Gemini with web grounding
+        chat = get_chat_instance(system_prompt, model_type="pro")  # Pro model for better research
+        user_msg = UserMessage(text=f"Search the web NOW for: {search_query}\n\nReturn ONLY valid JSON with real articles.")
+        response = await chat.send_message(user_msg)
+        
+        # Parse response
+        data = safe_parse_json(response, {"articles": []})
+        articles = data.get("articles", [])
+        
+        # Validate and clean articles
+        valid_articles = []
+        for article in articles:
+            # Ensure required fields
+            if not article.get("url") or article["url"] in ["#", "", None]:
+                continue
+            if not article.get("title"):
+                continue
+                
+            # Add defaults
+            if "id" not in article:
+                article["id"] = str(uuid.uuid4())
+            if "publishedAt" not in article or not article.get("publishedAt"):
+                article["publishedAt"] = datetime.now(timezone.utc).isoformat()
+            if "category" not in article:
+                article["category"] = category
+                
+            valid_articles.append(article)
+        
+        logger.info(f"Found {len(valid_articles)} valid news articles for category: {category}")
+        
+        return {
+            "articles": valid_articles,
+            "query": search_query,
+            "source": "gemini_web_grounding"
         }
         
-        # Call MOLTBOT chat endpoint
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            moltbot_response = await client.post(
-                f"{BACKEND_URL}/api/moltbot/chat",
-                json=moltbot_request
-            )
-            
-            if moltbot_response.status_code == 200:
-                moltbot_data = moltbot_response.json()
-                response_text = moltbot_data.get("response", "{}")
-                
-                # Parse the structured response
-                data = safe_parse_json(response_text, {"articles": []})
-                articles = data.get("articles", [])
-                
-                # Ensure all articles have required fields
-                for article in articles:
-                    if "publishedAt" not in article or not article.get("publishedAt"):
-                        article["publishedAt"] = datetime.now(timezone.utc).isoformat()
-                    if "category" not in article:
-                        article["category"] = category
-                    if "id" not in article:
-                        article["id"] = str(uuid.uuid4())
-                    # Ensure URL is not 404 placeholder
-                    if article.get("url") in ["#", "", None]:
-                        logger.warning(f"Invalid URL for article: {article.get('title')}")
-                
-                # Filter out articles with invalid URLs
-                valid_articles = [a for a in articles if a.get("url") and a["url"] not in ["#", ""]]
-                
-                logger.info(f"MOLTBOT found {len(valid_articles)} valid news articles")
-                
-                return {
-                    "articles": valid_articles,
-                    "query": search_query,
-                    "source": "moltbot_research"
-                }
-            else:
-                raise Exception("MOLTBOT request failed")
-        
     except Exception as e:
-        logger.error(f"Live news search error: {e}")
-        # Return empty to avoid showing fake news
-        return {"articles": [], "query": search_query, "error": str(e)}
+        logger.error(f"Live news search error: {e}", exc_info=True)
+        # Return empty instead of error to avoid breaking UI
+        return {
+            "articles": [],
+            "query": search_query or f"{category} news",
+            "error": "Unable to fetch news at this time"
+        }
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
