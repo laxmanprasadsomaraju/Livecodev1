@@ -3492,142 +3492,199 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Search for REAL news using actual web search + Gemini summarization"""
+    """Search for REAL news using multiple search strategies"""
     try:
-        from googlesearch import search as google_search
         from bs4 import BeautifulSoup
         import re
         
-        # Search query based on category
-        search_query = query or f"{category} technology news 2026"
+        # Multiple search queries for better coverage
+        search_queries = []
         
-        # Trusted tech news domains
-        trusted_domains = [
-            "techcrunch.com",
-            "theverge.com", 
-            "wired.com",
-            "arstechnica.com",
-            "venturebeat.com",
-            "reuters.com",
-            "bloomberg.com",
-            "technologyreview.com"
-        ]
+        if category == "ai" or category == "all":
+            search_queries = [
+                "latest AI artificial intelligence news",
+                "OpenAI ChatGPT GPT news",
+                "Google Gemini AI news",
+                "machine learning breakthrough",
+                "generative AI news",
+                "Claude Anthropic AI news"
+            ]
+        elif category == "tech":
+            search_queries = [
+                "technology news latest",
+                "tech innovation news",
+                "startup technology news"
+            ]
+        elif category == "coding":
+            search_queries = [
+                "programming development news",
+                "software engineering news",
+                "developer tools news"
+            ]
+        elif category == "startups":
+            search_queries = [
+                "startup funding news",
+                "tech startup news",
+                "venture capital news"
+            ]
         
-        articles = []
+        # Add custom query if provided
+        if query:
+            search_queries.insert(0, query)
         
-        # Perform actual Google search
-        logger.info(f"Searching web for: {search_query}")
-        search_results = []
+        all_articles = []
         
-        try:
-            # Get search results from Google
-            for url in google_search(search_query, num_results=20, advanced=True):
-                if hasattr(url, 'url'):
-                    search_results.append({
-                        'url': url.url,
-                        'title': url.title or '',
-                        'description': url.description or ''
-                    })
-                elif isinstance(url, str):
-                    search_results.append({'url': url, 'title': '', 'description': ''})
-                    
-                if len(search_results) >= 15:
-                    break
-        except Exception as search_error:
-            logger.error(f"Google search error: {search_error}")
-            search_results = []
-        
-        logger.info(f"Found {len(search_results)} search results")
-        
-        # Filter for trusted domains and extract article info
-        for result in search_results:
-            url = result.get('url', '')
+        # Try multiple search approaches
+        for search_query in search_queries[:3]:  # Try first 3 queries
+            logger.info(f"Searching for: {search_query}")
             
-            # Check if from trusted domain
-            is_trusted = any(domain in url for domain in trusted_domains)
-            if not is_trusted or not url.startswith('http'):
-                continue
+            # Approach 1: Direct scraping of news sites
+            news_sources = [
+                {
+                    "url": f"https://techcrunch.com/category/artificial-intelligence/",
+                    "name": "TechCrunch",
+                    "selector": "article"
+                },
+                {
+                    "url": "https://www.theverge.com/ai-artificial-intelligence",
+                    "name": "The Verge", 
+                    "selector": "article"
+                }
+            ]
             
-            # Try to fetch article title if not available
-            title = result.get('title', '')
-            summary = result.get('description', '')
-            
-            # Extract source from URL
-            source = "Tech News"
-            for domain in trusted_domains:
-                if domain in url:
-                    if "techcrunch" in domain:
-                        source = "TechCrunch"
-                    elif "theverge" in domain:
-                        source = "The Verge"
-                    elif "wired" in domain:
-                        source = "Wired"
-                    elif "arstechnica" in domain:
-                        source = "Ars Technica"
-                    elif "venturebeat" in domain:
-                        source = "VentureBeat"
-                    elif "reuters" in domain:
-                        source = "Reuters"
-                    elif "bloomberg" in domain:
-                        source = "Bloomberg"
-                    elif "technologyreview" in domain:
-                        source = "MIT Tech Review"
-                    break
-            
-            # If we don't have title/summary, try to fetch them
-            if not title or not summary:
+            for source in news_sources:
                 try:
-                    response = requests.get(url, timeout=5, headers={
+                    response = requests.get(source["url"], timeout=5, headers={
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     })
+                    
                     if response.status_code == 200:
                         soup = BeautifulSoup(response.content, 'html.parser')
+                        articles = soup.find_all(source["selector"], limit=5)
                         
-                        # Try to get title
-                        if not title:
-                            title_tag = soup.find('title') or soup.find('h1')
-                            if title_tag:
-                                title = title_tag.get_text().strip()[:200]
+                        for article in articles:
+                            # Try to extract article info
+                            title_elem = article.find('h2') or article.find('h3') or article.find('a')
+                            link_elem = article.find('a', href=True)
+                            
+                            if title_elem and link_elem:
+                                title = title_elem.get_text().strip()
+                                url = link_elem['href']
+                                
+                                # Make URL absolute
+                                if url.startswith('/'):
+                                    base_url = source["url"].split('/category')[0] if '/category' in source["url"] else source["url"].rsplit('/', 1)[0]
+                                    url = base_url + url
+                                
+                                # Get description
+                                desc_elem = article.find('p')
+                                description = desc_elem.get_text().strip()[:300] if desc_elem else f"Latest from {source['name']}"
+                                
+                                if len(title) > 20 and url.startswith('http'):
+                                    all_articles.append({
+                                        "id": str(uuid.uuid4()),
+                                        "title": title,
+                                        "summary": description,
+                                        "source": source["name"],
+                                        "url": url,
+                                        "category": category,
+                                        "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                        "verified": True
+                                    })
+                except Exception as e:
+                    logger.error(f"Error scraping {source['name']}: {e}")
+                    continue
+            
+            # Approach 2: Try googlesearch if we don't have enough articles
+            if len(all_articles) < 5:
+                try:
+                    from googlesearch import search as google_search
+                    
+                    search_results = []
+                    for url in google_search(search_query, num_results=10):
+                        if isinstance(url, str):
+                            search_results.append(url)
+                        elif hasattr(url, 'url'):
+                            search_results.append(url.url)
                         
-                        # Try to get description
-                        if not summary:
-                            meta_desc = soup.find('meta', {'name': 'description'}) or \
-                                      soup.find('meta', {'property': 'og:description'})
-                            if meta_desc and meta_desc.get('content'):
-                                summary = meta_desc['content'][:300]
-                except:
-                    pass
+                        if len(search_results) >= 10:
+                            break
+                    
+                    # Process Google results
+                    trusted_domains = ["techcrunch.com", "theverge.com", "wired.com", "arstechnica.com"]
+                    
+                    for url in search_results:
+                        if any(domain in url for domain in trusted_domains):
+                            try:
+                                # Fetch page
+                                resp = requests.get(url, timeout=5, headers={
+                                    'User-Agent': 'Mozilla/5.0'
+                                })
+                                
+                                if resp.status_code == 200:
+                                    soup = BeautifulSoup(resp.content, 'html.parser')
+                                    
+                                    title_tag = soup.find('h1') or soup.find('title')
+                                    title = title_tag.get_text().strip() if title_tag else ""
+                                    
+                                    meta_desc = soup.find('meta', {'name': 'description'})
+                                    description = meta_desc.get('content', '')[:300] if meta_desc else ""
+                                    
+                                    # Get source from domain
+                                    source = "Tech News"
+                                    if "techcrunch" in url:
+                                        source = "TechCrunch"
+                                    elif "theverge" in url:
+                                        source = "The Verge"
+                                    elif "wired" in url:
+                                        source = "Wired"
+                                    elif "arstechnica" in url:
+                                        source = "Ars Technica"
+                                    
+                                    if len(title) > 20:
+                                        all_articles.append({
+                                            "id": str(uuid.uuid4()),
+                                            "title": title,
+                                            "summary": description or f"Latest AI news from {source}",
+                                            "source": source,
+                                            "url": url,
+                                            "category": category,
+                                            "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                            "verified": True
+                                        })
+                            except:
+                                continue
+                
+                except Exception as search_error:
+                    logger.error(f"Google search error: {search_error}")
             
-            # Only add if we have at least a title
-            if title and len(title) > 10:
-                articles.append({
-                    "id": str(uuid.uuid4()),
-                    "title": title,
-                    "summary": summary or f"Latest news from {source}",
-                    "source": source,
-                    "url": url,
-                    "category": category,
-                    "publishedAt": datetime.now(timezone.utc).isoformat(),
-                    "verified": True
-                })
-            
-            # Limit to 10 articles
-            if len(articles) >= 10:
+            # If we have enough articles, stop searching
+            if len(all_articles) >= 8:
                 break
         
-        logger.info(f"Returning {len(articles)} verified articles")
+        # Remove duplicates by URL
+        seen_urls = set()
+        unique_articles = []
+        for article in all_articles:
+            if article['url'] not in seen_urls:
+                seen_urls.add(article['url'])
+                unique_articles.append(article)
+                if len(unique_articles) >= 10:
+                    break
+        
+        logger.info(f"Returning {len(unique_articles)} articles for category: {category}")
         
         return {
-            "articles": articles,
-            "query": search_query,
-            "source": "real_web_search"
+            "articles": unique_articles,
+            "query": search_queries[0] if search_queries else category,
+            "source": "multi_source_search"
         }
         
     except Exception as e:
         logger.error(f"Live news search error: {e}", exc_info=True)
         return {
             "articles": [],
-            "query": search_query or f"{category} news",
+            "query": category,
             "error": str(e)
         }
 
