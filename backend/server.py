@@ -3496,15 +3496,15 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
     try:
         # Create focused research query
         if category == "ai" or category == "all":
-            research_query = "Find me 10 latest AI and technology news articles from January 2026. Include OpenAI, Google Gemini, Anthropic Claude, machine learning breakthroughs. Give me REAL article titles, summaries, and URLs from TechCrunch, The Verge, Wired."
+            research_query = "Find me 10 latest and most recent AI and technology news articles. Include OpenAI, Google Gemini, Anthropic Claude, machine learning breakthroughs. Give me REAL article titles, summaries, and URLs from TechCrunch, The Verge, Wired."
         elif category == "tech":
-            research_query = "Find me 10 latest technology news articles from January 2026. Include hardware, software, tech companies. Give me REAL article titles, summaries, and URLs."
+            research_query = "Find me 10 latest and most recent technology news articles. Include hardware, software, tech companies. Give me REAL article titles, summaries, and URLs."
         elif category == "coding":
-            research_query = "Find me 10 latest programming and developer news from January 2026. Include new frameworks, languages, tools. Give me REAL article titles, summaries, and URLs."
+            research_query = "Find me 10 latest and most recent programming and developer news. Include new frameworks, languages, tools. Give me REAL article titles, summaries, and URLs."
         elif category == "startups":
-            research_query = "Find me 10 latest startup and venture capital news from January 2026. Include funding rounds, new startups, acquisitions. Give me REAL article titles, summaries, and URLs."
+            research_query = "Find me 10 latest and most recent startup and venture capital news. Include funding rounds, new startups, acquisitions. Give me REAL article titles, summaries, and URLs."
         else:
-            research_query = f"Find me 10 latest {category} news articles from January 2026"
+            research_query = f"Find me 10 latest and most recent {category} news articles"
         
         if query:
             research_query = query
