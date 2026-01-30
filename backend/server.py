@@ -4200,12 +4200,12 @@ ANALYZE THE SCREENSHOT:
 
 Be specific to what you see. Help the student understand the visual content in relation to the learning material."""
 
-        chat = get_chat_instance(system_prompt, model_type="fast")
+        chat = get_chat_instance(system_prompt, model_type="fast", enable_vision=True)
         
-        # Send image with context
+        # Send image with context - CORRECT FORMAT
         user_msg = UserMessage(
             text=f"Please analyze this screenshot from the video '{request.video_title}' taken at {int(request.current_time)} seconds. What do you see and how does it relate to what's being taught?",
-            image=request.image_base64
+            file_contents=[ImageContent(image_base64=request.image_base64)]
         )
         
         response = await chat.send_message(user_msg)
