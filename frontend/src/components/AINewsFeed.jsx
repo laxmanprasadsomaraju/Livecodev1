@@ -101,13 +101,8 @@ const AINewsFeed = () => {
     }
   };
 
-  const filteredNews = news.filter(article => {
-    if (searchQuery) {
-      return article.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             article.summary?.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
-  });
+  // Remove the filteredNews filter - just show all news
+  const displayNews = news;
 
   const formatTime = (dateString) => {
     try {
