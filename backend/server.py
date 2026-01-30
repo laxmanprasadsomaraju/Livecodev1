@@ -3659,57 +3659,28 @@ async def summarize_news_article(request: dict):
                 "full_content": "Please visit the original article using the 'Read Full Article' button."
             }
         
-        # Step 2: Use Gemini with EMERGENT_LLM_KEY to analyze the content
-        system_prompt = f"""You are a professional tech news analyst.
-
-I have extracted content from a news article. Analyze it and provide a comprehensive summary.
-
-RESPONSE FORMAT (VALID JSON ONLY):
-{{
-    "title": "Clean article title",
-    "summary": "Comprehensive 4-5 sentence summary covering the main story, key findings, and implications",
-    "key_points": [
-        "Key point 1 - with specific details",
-        "Key point 2 - with context and numbers",
-        "Key point 3 - with implications",
-        "Key point 4 - with expert quotes or data"
-    ],
-    "main_topic": "Primary topic",
-    "technologies_mentioned": ["Tech 1", "Tech 2", "Tech 3"],
-    "companies_mentioned": ["Company 1", "Company 2"],
-    "reading_time": "5 min",
-    "full_content": "Detailed 2-3 paragraph analysis covering all major points, quotes, data, and conclusions from the article",
-    "takeaways": [
-        "Takeaway 1 - what you need to know",
-        "Takeaway 2 - why this matters",
-        "Takeaway 3 - what's next"
-    ]
-}}
-
-Be accurate and extract real information from the provided content."""
+        # Step 2: Format the scraped content (NO LLM - budget issue)
+        # Just return what we scraped
+        key_points = []
+        if len(article_text) > 100:
+            # Split into sentences and take first 4-5
+            sentences = article_text.split('. ')
+            key_points = [s.strip() + '.' for s in sentences[:5] if len(s.strip()) > 20]
         
-        chat = get_chat_instance(system_prompt, model_type="fast")
-        user_msg = UserMessage(text=f"Article Title: {title}\n\nArticle Content:\n{article_text}\n\nAnalyze this and return ONLY valid JSON.")
-        response = await chat.send_message(user_msg)
+        # Extract first paragraph as summary
+        paragraphs = article_text.split('\n\n')
+        summary = paragraphs[0][:500] if paragraphs else article_text[:500]
         
-        # Parse response
-        data = safe_parse_json(response, {
-            "title": title or "Article Summary",
-            "summary": "Analysis complete",
-            "key_points": [],
-            "full_content": response
-        })
-        
-        # Ensure title
-        if not data.get("title") or data["title"] == "Article Summary":
-            data["title"] = title or "Article Summary"
-        
-        data["url"] = url
-        data["analyzed_by"] = "web_scraping_gemini"
-        
-        logger.info(f"Successfully analyzed article from: {url[:50]}")
-        
-        return data
+        return {
+            "title": title or "Article",
+            "summary": summary,
+            "key_points": key_points if key_points else ["Article content extracted"],
+            "url": url,
+            "full_content": article_text[:2000],  # First 2000 chars
+            "analyzed_by": "direct_scraping",
+            "main_topic": "Technology",
+            "reading_time": f"{len(article_text) // 1000} min"
+        }
         
     except Exception as e:
         logger.error(f"Article summary error: {e}", exc_info=True)
