@@ -97,6 +97,20 @@ const Header = ({ mode, onModeChange }) => {
             <span className="hidden md:inline">News</span>
           </button>
           <button
+            data-testid="mode-cv-btn"
+            onClick={() => onModeChange("cv")}
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap
+              ${mode === "cv" 
+                ? "mode-active text-white bg-gradient-to-r from-indigo-500/20 to-purple-500/20" 
+                : "text-white/60 hover:text-white hover:bg-white/5"
+              }
+            `}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden md:inline">CV</span>
+          </button>
+          <button
             data-testid="mode-ide-btn"
             onClick={() => onModeChange("ide")}
             className={`
