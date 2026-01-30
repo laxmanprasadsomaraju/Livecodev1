@@ -3493,81 +3493,98 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Use Gemini to research and find real news"""
+    """Get news using RSS feeds - ACTUALLY WORKS"""
     try:
-        # Search query
-        search_query = query or f"latest {category} news"
+        import feedparser
         
-        # Use regular Gemini chat (not MOLTBOT - budget issue)
-        system_prompt = f"""You are a news researcher with web search access.
-
-TASK: Search the web RIGHT NOW for latest news articles about: {search_query}
-
-CRITICAL:
-1. Use web search to find REAL recent articles
-2. Visit TechCrunch, The Verge, Wired, Reuters
-3. Get ACTUAL article titles and URLs
-4. Verify URLs work
-
-RETURN ONLY THIS JSON (nothing else):
-{{
-    "articles": [
-        {{
-            "title": "Real article title from website",
-            "summary": "2-3 sentence summary",
-            "url": "https://real-url.com/article",
-            "source": "TechCrunch"
-        }}
-    ]
-}}
-
-Find 8-10 recent articles. Search web now."""
+        all_articles = []
         
-        chat = get_chat_instance(system_prompt, model_type="pro")
-        user_msg = UserMessage(text=f"Search web for: {search_query}\n\nReturn ONLY the JSON array.")
-        response = await chat.send_message(user_msg)
+        # RSS Feed URLs that WORK
+        rss_feeds = {
+            "ai": [
+                "https://techcrunch.com/category/artificial-intelligence/feed/",
+                "https://www.artificialintelligence-news.com/feed/",
+            ],
+            "tech": [
+                "https://techcrunch.com/feed/",
+                "https://www.theverge.com/rss/index.xml"
+            ],
+            "coding": [
+                "https://dev.to/feed",
+            ],
+            "startups": [
+                "https://techcrunch.com/category/startups/feed/"
+            ]
+        }
         
-        logger.info(f"Gemini response received, length: {len(response)}")
+        # Get feeds for category
+        feeds = rss_feeds.get(category, rss_feeds["ai"])
         
-        # Parse JSON
-        data = safe_parse_json(response, {"articles": []})
-        articles = data.get("articles", [])
+        logger.info(f"Fetching {len(feeds)} RSS feeds for {category}")
         
-        # If no articles in JSON, try to extract URLs from markdown
-        if not articles:
-            import re
-            # Extract markdown links
-            url_pattern = r'\[([^\]]+)\]\((https://[^\)]+)\)'
-            matches = re.findall(url_pattern, response)
-            
-            for title, url in matches[:10]:
-                articles.append({
-                    "title": title,
-                    "summary": "Latest news article",
-                    "url": url,
-                    "source": "News"
-                })
+        for feed_url in feeds:
+            try:
+                logger.info(f"Parsing feed: {feed_url}")
+                feed = feedparser.parse(feed_url)
+                
+                for entry in feed.entries[:6]:  # Max 6 from each feed
+                    title = entry.get('title', 'No title')
+                    url = entry.get('link', '')
+                    summary = entry.get('summary', entry.get('description', 'Latest news article'))
+                    
+                    # Clean HTML from summary
+                    from html import unescape
+                    import re
+                    summary = unescape(summary)
+                    summary = re.sub('<[^<]+?>', '', summary)[:300]
+                    
+                    # Extract source from URL
+                    source = "News"
+                    if 'techcrunch' in url:
+                        source = "TechCrunch"
+                    elif 'theverge' in url:
+                        source = "The Verge"
+                    elif 'artificialintelligence-news' in url:
+                        source = "AI News"
+                    elif 'dev.to' in url:
+                        source = "Dev.to"
+                    
+                    if url and len(title) > 10:
+                        all_articles.append({
+                            "id": str(uuid.uuid4()),
+                            "title": title,
+                            "summary": summary,
+                            "url": url,
+                            "source": source,
+                            "category": category,
+                            "publishedAt": datetime.now(timezone.utc).isoformat(),
+                            "verified": True
+                        })
+                
+                logger.info(f"Got {len(all_articles)} articles so far")
+                
+            except Exception as e:
+                logger.error(f"Error parsing feed {feed_url}: {e}")
+                continue
         
-        # Add required fields
-        for article in articles:
-            article["id"] = str(uuid.uuid4())
-            article["category"] = category
-            article["publishedAt"] = datetime.now(timezone.utc).isoformat()
-            article["verified"] = True
+        # Remove duplicates
+        seen_urls = set()
+        unique_articles = []
+        for article in all_articles:
+            if article['url'] not in seen_urls:
+                seen_urls.add(article['url'])
+                unique_articles.append(article)
         
-        # Filter valid URLs
-        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"] and "#" not in a["url"]]
-        
-        logger.info(f"Returning {len(valid_articles)} articles")
+        logger.info(f"Returning {len(unique_articles)} unique articles")
         
         return {
-            "articles": valid_articles,
-            "query": search_query,
-            "source": "gemini_research"
+            "articles": unique_articles[:10],
+            "query": query or category,
+            "source": "rss_feeds"
         }
         
     except Exception as e:
-        logger.error(f"News error: {e}", exc_info=True)
+        logger.error(f"RSS feed error: {e}", exc_info=True)
         return {"articles": [], "query": query or category, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
