@@ -1,4 +1,4 @@
-import { Code, Globe, MonitorPlay, Sparkles, Brain, Bot, Newspaper } from "lucide-react";
+import { Code, Globe, MonitorPlay, Sparkles, Brain, Bot, Newspaper, FileText } from "lucide-react";
 
 const Header = ({ mode, onModeChange }) => {
   return (
