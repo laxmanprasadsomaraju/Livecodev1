@@ -39,10 +39,19 @@ const AINewsFeed = () => {
       if (customQuery) {
         url += `&query=${encodeURIComponent(customQuery)}`;
       }
+      
+      console.log("Fetching news from:", url);
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch news");
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log("News data received:", data);
+      
       setNews(data.articles || []);
+      
       if (data.articles && data.articles.length > 0) {
         toast.success(`✨ Found ${data.articles.length} latest articles!`);
       } else {
@@ -50,7 +59,7 @@ const AINewsFeed = () => {
       }
     } catch (error) {
       console.error("News fetch error:", error);
-      toast.error("Failed to fetch live news");
+      toast.error("Failed to fetch news");
       setNews([]);
     } finally {
       setIsLoading(false);
