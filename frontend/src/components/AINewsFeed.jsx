@@ -32,17 +32,21 @@ const AINewsFeed = () => {
     fetchNews();
   }, [category]);
 
-  const fetchNews = async () => {
+  const fetchNews = async (customQuery = null) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/news/search-live?category=${category}`);
+      let url = `${BACKEND_URL}/api/news/search-live?category=${category}`;
+      if (customQuery) {
+        url += `&query=${encodeURIComponent(customQuery)}`;
+      }
+      const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch news");
       const data = await response.json();
       setNews(data.articles || []);
       if (data.articles && data.articles.length > 0) {
         toast.success(`✨ Found ${data.articles.length} latest articles!`);
       } else {
-        toast.info("No articles found. Try another category.");
+        toast.info("No articles found. Try different search.");
       }
     } catch (error) {
       console.error("News fetch error:", error);
