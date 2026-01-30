@@ -1,5 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Request, Response, Cookie, Depends
-from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Request, Response
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketState
@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
-import re
 
 
 ROOT_DIR = Path(__file__).parent
@@ -360,7 +359,7 @@ def create_moltbot_config(token: str, api_key: str = None):
     os.makedirs(WORKSPACE_DIR, exist_ok=True)
     
     # Use provided key or fallback to env
-    emergent_key = api_key or os.environ.get('EMERGENT_API_KEY', 'sk-emergent-54d8aE23aFf4e02159')
+    emergent_key = api_key or os.environ.get('EMERGENT_API_KEY', 'sk-emergent-1234')
     emergent_base_url = os.environ.get('EMERGENT_BASE_URL', 'https://integrations.emergentagent.com/llm')
     
     # Load existing config if present
@@ -398,7 +397,12 @@ def create_moltbot_config(token: str, api_key: str = None):
                 "name": "GPT-5.2",
                 "reasoning": True,
                 "input": ["text"],
-                "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                "cost": {
+                    "input": 0.00000175,
+                    "output": 0.000014,
+                    "cacheRead": 0.000000175,
+                    "cacheWrite": 0.00000175
+                },
                 "contextWindow": 400000,
                 "maxTokens": 128000
             }
@@ -416,7 +420,15 @@ def create_moltbot_config(token: str, api_key: str = None):
                 "id": "claude-sonnet-4-5",
                 "name": "Claude Sonnet 4.5",
                 "input": ["text"],
-                "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                "cost": {"input": 0.000003, "output": 0.000015, "cacheRead": 0.0000003, "cacheWrite": 0.00000375},
+                "contextWindow": 200000,
+                "maxTokens": 64000
+            },
+            {
+                "id": "claude-opus-4-5",
+                "name": "Claude Opus 4.5",
+                "input": ["text"],
+                "cost": {"input": 0.000005, "output": 0.000025, "cacheRead": 0.0000005, "cacheWrite": 0.00000625},
                 "contextWindow": 200000,
                 "maxTokens": 64000
             }
@@ -547,7 +559,7 @@ async def start_gateway_process(api_key: str, provider: str, owner_user_id: str)
                     )
                     
                     return token
-            except Exception as e:
+            except Exception:
                 pass
             await asyncio.sleep(1)
     
