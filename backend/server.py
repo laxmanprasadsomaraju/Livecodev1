@@ -3492,71 +3492,71 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Simple Gemini web search for news"""
+    """Use MOLTBOT research mode for news - IT WORKS!"""
     try:
         # Simple search query
         if query:
             search_text = query
         elif category == "ai":
-            search_text = "latest AI artificial intelligence news OpenAI ChatGPT Gemini Claude"
+            search_text = "latest AI news OpenAI ChatGPT Gemini Claude machine learning"
         elif category == "tech":
-            search_text = "latest technology news tech companies innovation"
+            search_text = "latest technology news companies innovation"
         elif category == "coding":
-            search_text = "latest programming coding developer news"
+            search_text = "latest programming developer news frameworks"
         elif category == "startups":
-            search_text = "latest startup funding venture capital news"
+            search_text = "latest startup funding venture capital"
         else:
             search_text = f"latest {category} news"
         
-        # Dead simple prompt
-        system_prompt = """You are a news finder. Search the web RIGHT NOW for news articles.
+        # Call MOLTBOT in research mode - THIS WORKS!
+        moltbot_request = MoltbotChatRequest(
+            message=f"""Search web and find 10 latest news articles about: {search_text}
 
-Return ONLY this JSON format:
-{
+IMPORTANT: 
+- Use web search to find REAL articles
+- Get actual URLs from TechCrunch, The Verge, Wired, Reuters
+- Extract real titles and summaries
+
+Return as JSON:
+{{
     "articles": [
-        {
-            "title": "Article title",
-            "summary": "Brief summary",
-            "url": "https://real-url.com/article",
-            "source": "Website name"
-        }
+        {{"title": "...", "summary": "...", "url": "https://...", "source": "..."}}
     ]
-}
-
-Find 10 REAL articles with REAL URLs. Search the web now."""
+}}""",
+            agent_mode="research",
+            session_id=str(uuid.uuid4()),
+            thinking_mode="senior-engineer",
+            skill_level="expert"
+        )
         
-        # Use Gemini with EMERGENT_LLM_KEY
-        chat = get_chat_instance(system_prompt, model_type="pro")
-        user_msg = UserMessage(text=f"Search web for: {search_text}\n\nGive me 10 real news articles with working URLs.")
-        response = await chat.send_message(user_msg)
+        # Call MOLTBOT
+        moltbot_response = await moltbot_chat(moltbot_request)
+        response_text = moltbot_response["response"]
         
-        # Parse response
-        data = safe_parse_json(response, {"articles": []})
+        # Parse JSON from response
+        data = safe_parse_json(response_text, {"articles": []})
         articles = data.get("articles", [])
         
         # Add required fields
         for article in articles:
-            if not article.get("id"):
-                article["id"] = str(uuid.uuid4())
-            if not article.get("category"):
-                article["category"] = category
-            if not article.get("publishedAt"):
-                article["publishedAt"] = datetime.now(timezone.utc).isoformat()
+            article["id"] = article.get("id", str(uuid.uuid4()))
+            article["category"] = category
+            article["publishedAt"] = article.get("publishedAt", datetime.now(timezone.utc).isoformat())
             article["verified"] = True
         
         # Filter valid URLs
-        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"] and a["url"] != "#"]
+        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"]]
         
-        logger.info(f"Found {len(valid_articles)} articles")
+        logger.info(f"MOLTBOT found {len(valid_articles)} articles")
         
         return {
             "articles": valid_articles,
             "query": search_text,
-            "source": "gemini_search"
+            "source": "moltbot_research"
         }
         
     except Exception as e:
-        logger.error(f"News error: {e}", exc_info=True)
+        logger.error(f"MOLTBOT news error: {e}", exc_info=True)
         return {"articles": [], "query": search_text, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
