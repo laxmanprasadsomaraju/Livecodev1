@@ -33,11 +33,17 @@ const VideoLearningModal = ({ videoUrl, videoTitle, onClose, skillLevel = "inter
   const [dragOver, setDragOver] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [conversationContext, setConversationContext] = useState([]);
+  const [coveredTopics, setCoveredTopics] = useState([]); // Topics covered so far
+  const [currentQuiz, setCurrentQuiz] = useState(null); // Current quiz state
+  const [quizHistory, setQuizHistory] = useState([]); // Quiz performance tracking
+  const [autoScreenshot, setAutoScreenshot] = useState(null); // Auto-captured screenshot
+  const [realVideoProgress, setRealVideoProgress] = useState(0); // TRUE video progress
   const iframeRef = useRef(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const watchStartTime = useRef(Date.now());
+  const lastScreenshotTime = useRef(0);
 
   // Extract YouTube video ID
   const getVideoId = (url) => {
