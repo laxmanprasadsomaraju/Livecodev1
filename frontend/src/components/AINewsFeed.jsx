@@ -22,14 +22,19 @@ const NEWS_CATEGORIES = [
 
 const AINewsFeed = () => {
   const [news, setNews] = useState([]);
-  const [isLoading, setIsLoading] = useState(false); // Changed to false - don't load on mount
+  const [isLoading, setIsLoading] = useState(false);
   const [category, setCategory] = useState("all");
-  const [searchInput, setSearchInput] = useState(""); // For display only
+  const [searchInput, setSearchInput] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [articleSummary, setArticleSummary] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
-  // REMOVED automatic fetch - only on Refresh button click now!
+  // When category changes, fetch news automatically
+  useEffect(() => {
+    if (category) {
+      fetchNews();
+    }
+  }, [category]);
 
   const fetchNews = async (customQuery = null) => {
     setIsLoading(true);
