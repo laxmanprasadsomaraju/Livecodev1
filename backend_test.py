@@ -1117,6 +1117,337 @@ print(result)"""
         
         return success, response
 
+    # ============== CV INTELLIGENCE & INTERVIEW MENTOR TESTS ==============
+    
+    def create_test_cv_file(self):
+        """Create a test CV file as specified in the review request"""
+        cv_content = """John Doe
+john.doe@email.com | +1234567890 | linkedin.com/in/johndoe
+
+SUMMARY
+Experienced software engineer with 5 years of experience in Python and JavaScript.
+
+EXPERIENCE
+Senior Developer at TechCorp (2020-Present)
+- Built scalable APIs using FastAPI
+- Led team of 3 engineers
+
+Junior Developer at StartupXYZ (2018-2020)
+- Developed frontend applications using React
+
+EDUCATION
+BS Computer Science, State University (2018)
+
+SKILLS
+Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
+        return cv_content.encode('utf-8')
+
+    def test_cv_upload(self):
+        """Test CV upload and parsing API"""
+        try:
+            cv_data = self.create_test_cv_file()
+            files = {'file': ('test_cv.txt', cv_data, 'text/plain')}
+            
+            success, response = self.run_test_with_files("CV Upload", "POST", "cv/upload", 200, files=files, timeout=60)
+            
+            if success and response:
+                # Store cv_id for subsequent tests
+                self.cv_id = response.get('cv_id')
+                expected_keys = ["cv_id", "filename", "file_type", "raw_text", "sections", "contact_info", "total_lines", "created_at"]
+                if all(key in response for key in expected_keys):
+                    print(f"   ✓ CV uploaded: {response.get('filename', 'N/A')}")
+                    print(f"   ✓ File type: {response.get('file_type', 'N/A')}")
+                    print(f"   ✓ Total lines: {response.get('total_lines', 0)}")
+                    print(f"   ✓ Sections found: {len(response.get('sections', []))}")
+                    
+                    # Check sections structure
+                    sections = response.get('sections', [])
+                    if sections:
+                        section_types = [s.get('type') for s in sections]
+                        print(f"   ✓ Section types: {section_types}")
+                        
+                        # Check for expected sections
+                        expected_sections = ['experience', 'education', 'skills', 'summary']
+                        found_sections = [s for s in expected_sections if s in section_types]
+                        print(f"   ✓ Expected sections found: {found_sections}")
+                    
+                    # Check contact info
+                    contact_info = response.get('contact_info', {})
+                    if contact_info and contact_info.get('name'):
+                        print(f"   ✓ Contact info extracted: {contact_info.get('name')}")
+                    
+                    return True, response
+                else:
+                    print(f"   ⚠️ Missing expected response keys")
+            
+            return success, response
+            
+        except Exception as e:
+            print(f"❌ CV Upload Failed - Error: {str(e)}")
+            self.failed_tests.append({"test": "CV Upload", "error": str(e)})
+            return False, {}
+
+    def test_cv_get(self):
+        """Test getting a stored CV"""
+        if not hasattr(self, 'cv_id') or not self.cv_id:
+            print("❌ Skipping CV get test - no cv_id available")
+            return False, {}
+        
+        url = f"cv/{self.cv_id}"
+        success, response = self.run_test("Get CV", "GET", url, 200, timeout=30)
+        
+        if success and response:
+            expected_keys = ["cv_id", "filename", "file_type", "raw_text", "sections", "contact_info"]
+            if all(key in response for key in expected_keys):
+                print(f"   ✓ CV retrieved: {response.get('cv_id', 'N/A')}")
+                print(f"   ✓ Sections: {len(response.get('sections', []))}")
+                
+                # Verify content matches what we uploaded
+                if "John Doe" in response.get('raw_text', ''):
+                    print(f"   ✓ Content verification passed")
+                return True, response
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+        
+        return success, response
+
+    def test_cv_edit(self):
+        """Test AI-powered CV section editing"""
+        if not hasattr(self, 'cv_id') or not self.cv_id:
+            print("❌ Skipping CV edit test - no cv_id available")
+            return False, {}
+        
+        # First get the CV to find a section_id
+        cv_response = self.run_test("Get CV for Edit", "GET", f"cv/{self.cv_id}", 200, timeout=30)
+        if not cv_response[0] or not cv_response[1]:
+            print("❌ Could not retrieve CV for editing")
+            return False, {}
+        
+        sections = cv_response[1].get('sections', [])
+        if not sections:
+            print("❌ No sections found in CV")
+            return False, {}
+        
+        # Use the first section for testing
+        section_id = sections[0].get('id')
+        
+        data = {
+            "cv_id": self.cv_id,
+            "section_id": section_id,
+            "edit_instruction": "Make this more concise and add metrics",
+            "preserve_latex": False
+        }
+        
+        success, response = self.run_test("CV Edit", "POST", "cv/edit", 200, data, timeout=60)
+        
+        if success and response:
+            expected_keys = ["original_text", "edited_text", "explanation", "changes_summary"]
+            if all(key in response for key in expected_keys):
+                print(f"   ✓ Original text length: {len(response.get('original_text', ''))}")
+                print(f"   ✓ Edited text length: {len(response.get('edited_text', ''))}")
+                print(f"   ✓ Changes made: {len(response.get('changes_summary', []))}")
+                
+                # Check if text was actually modified
+                original = response.get('original_text', '')
+                edited = response.get('edited_text', '')
+                if original != edited:
+                    print(f"   ✓ Text was successfully modified")
+                else:
+                    print(f"   ⚠️ Text appears unchanged")
+                
+                return True, response
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+        
+        return success, response
+
+    def test_cv_analyze(self):
+        """Test CV analysis against job target"""
+        if not hasattr(self, 'cv_id') or not self.cv_id:
+            print("❌ Skipping CV analyze test - no cv_id available")
+            return False, {}
+        
+        data = {
+            "cv_id": self.cv_id,
+            "target_role": "Senior Software Engineer",
+            "company_name": "Google",
+            "job_description": "Looking for a senior engineer with 5+ years experience in Python, Kubernetes, and cloud infrastructure"
+        }
+        
+        success, response = self.run_test("CV Analyze", "POST", "cv/analyze", 200, data, timeout=90)
+        
+        if success and response:
+            expected_keys = ["match_score", "missing_keywords", "skill_gaps", "experience_gaps", "strengths", "recommendations", "honest_additions", "do_not_fake", "mentor_advice"]
+            if all(key in response for key in expected_keys):
+                match_score = response.get('match_score', 0)
+                missing_keywords = response.get('missing_keywords', [])
+                skill_gaps = response.get('skill_gaps', [])
+                strengths = response.get('strengths', [])
+                
+                print(f"   ✓ Match score: {match_score}%")
+                print(f"   ✓ Missing keywords: {len(missing_keywords)}")
+                print(f"   ✓ Skill gaps identified: {len(skill_gaps)}")
+                print(f"   ✓ Strengths found: {len(strengths)}")
+                
+                # Validate match score is realistic (should be 50-70% for test CV against Google Senior Engineer)
+                if 30 <= match_score <= 90:
+                    print(f"   ✓ Realistic match score")
+                else:
+                    print(f"   ⚠️ Match score may be unrealistic: {match_score}%")
+                
+                # Check for expected missing skills (like Kubernetes)
+                missing_keywords_lower = [k.lower() for k in missing_keywords]
+                if any('kubernetes' in k or 'k8s' in k for k in missing_keywords_lower):
+                    print(f"   ✓ Correctly identified missing Kubernetes")
+                
+                # Check mentor advice is meaningful
+                mentor_advice = response.get('mentor_advice', '')
+                if len(mentor_advice) > 100:
+                    print(f"   ✓ Comprehensive mentor advice provided")
+                else:
+                    print(f"   ⚠️ Mentor advice seems too brief")
+                
+                return True, response
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+        
+        return success, response
+
+    def test_cv_company_research(self):
+        """Test company research for interview prep"""
+        # Use form data as the endpoint expects
+        url = f"{self.base_url}/api/cv/company-research"
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Company Research...")
+        print(f"   URL: {url}")
+        
+        try:
+            # Use form data as the endpoint expects
+            form_data = {
+                'company_name': 'Google',
+                'target_role': 'Senior Software Engineer'
+            }
+            
+            response = requests.post(url, data=form_data, timeout=60)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    expected_keys = ["company_name", "industry", "description", "culture_insights", "interview_tips", "common_questions", "values", "similar_roles"]
+                    if all(key in response_data for key in expected_keys):
+                        print(f"   ✓ Company: {response_data.get('company_name', 'N/A')}")
+                        print(f"   ✓ Industry: {response_data.get('industry', 'N/A')}")
+                        print(f"   ✓ Culture insights: {len(response_data.get('culture_insights', []))}")
+                        print(f"   ✓ Interview tips: {len(response_data.get('interview_tips', []))}")
+                        print(f"   ✓ Common questions: {len(response_data.get('common_questions', []))}")
+                        print(f"   ✓ Values: {len(response_data.get('values', []))}")
+                        print(f"   ✓ Similar roles: {len(response_data.get('similar_roles', []))}")
+                        
+                        # Check if meaningful content was generated
+                        if response_data.get('company_name') == 'Google':
+                            print(f"   ✓ Company name correctly identified")
+                        
+                        return True, response_data
+                    else:
+                        print(f"   ⚠️ Missing expected response keys")
+                        print(f"   Response keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Non-dict response'}")
+                except:
+                    print("   Response: Non-JSON or empty")
+            else:
+                self.failed_tests.append({
+                    "test": "Company Research",
+                    "expected": 200,
+                    "actual": response.status_code,
+                    "response": response.text[:200] if response.text else "Empty response"
+                })
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+
+            return success, response.json() if success and response.text else {}
+
+        except requests.exceptions.Timeout:
+            print(f"❌ Failed - Timeout after 60s")
+            self.failed_tests.append({"test": "Company Research", "error": "Timeout"})
+            return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({"test": "Company Research", "error": str(e)})
+            return False, {}
+
+    def test_cv_update_section(self):
+        """Test updating a CV section"""
+        if not hasattr(self, 'cv_id') or not self.cv_id:
+            print("❌ Skipping CV update section test - no cv_id available")
+            return False, {}
+        
+        # First get the CV to find a section_id
+        cv_response = self.run_test("Get CV for Update", "GET", f"cv/{self.cv_id}", 200, timeout=30)
+        if not cv_response[0] or not cv_response[1]:
+            print("❌ Could not retrieve CV for updating")
+            return False, {}
+        
+        sections = cv_response[1].get('sections', [])
+        if not sections:
+            print("❌ No sections found in CV")
+            return False, {}
+        
+        # Use the first section for testing
+        section_id = sections[0].get('id')
+        
+        # Use form data as the endpoint expects
+        url = f"{self.base_url}/api/cv/update-section"
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing CV Update Section...")
+        print(f"   URL: {url}")
+        
+        try:
+            form_data = {
+                'cv_id': self.cv_id,
+                'section_id': section_id,
+                'new_content': 'Updated content here'
+            }
+            
+            response = requests.post(url, data=form_data, timeout=30)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    if response_data.get('success'):
+                        print(f"   ✓ Section updated successfully")
+                        return True, response_data
+                    else:
+                        print(f"   ⚠️ Update may not have succeeded")
+                except:
+                    print("   Response: Non-JSON or empty")
+            else:
+                self.failed_tests.append({
+                    "test": "CV Update Section",
+                    "expected": 200,
+                    "actual": response.status_code,
+                    "response": response.text[:200] if response.text else "Empty response"
+                })
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+
+            return success, response.json() if success and response.text else {}
+
+        except requests.exceptions.Timeout:
+            print(f"❌ Failed - Timeout after 30s")
+            self.failed_tests.append({"test": "CV Update Section", "error": "Timeout"})
+            return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({"test": "CV Update Section", "error": str(e)})
+            return False, {}
+
     def run_all_tests(self):
         """Run all API tests"""
         print("🚀 Starting Live Code Mentor API Tests")
