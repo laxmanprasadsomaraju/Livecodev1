@@ -3570,36 +3570,76 @@ Return as structured JSON array of articles.""",
         return {"articles": [], "query": search_query, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
-async def summarize_news_article(url: str):
-    """Fetch and summarize a specific news article"""
+async def summarize_news_article(request: dict):
+    """Fetch and summarize a specific news article using MOLTBOT web scraping"""
     try:
-        system_prompt = """You are a tech news summarizer.
-Based on the article URL, provide a concise summary.
+        url = request.get("url")
+        if not url or url == "#":
+            raise HTTPException(status_code=400, detail="Invalid URL")
+        
+        # Use MOLTBOT to scrape and summarize the actual article
+        moltbot_request = {
+            "message": f"""Scrape and analyze this article URL: {url}
 
-RESPONSE FORMAT (JSON):
-{
-    "title": "Article title",
-    "summary": "3-4 sentence summary",
-    "key_points": ["Point 1", "Point 2", "Point 3"],
-    "category": "ai|tech|coding|startups",
-    "reading_time": "5 min"
-}"""
+TASK:
+1. Fetch the REAL content from the URL
+2. Read the full article text
+3. Extract key information
+
+Provide a comprehensive analysis as JSON:
+{{
+    "title": "Actual article title from page",
+    "summary": "Comprehensive 4-5 sentence summary of main points",
+    "key_points": ["Key point 1 with details", "Key point 2", "Key point 3", "Key point 4"],
+    "main_topic": "Primary topic/theme",
+    "technologies_mentioned": ["Tech 1", "Tech 2"],
+    "companies_mentioned": ["Company 1", "Company 2"],
+    "reading_time": "X min",
+    "full_content": "Detailed summary of all sections",
+    "takeaways": ["Takeaway 1", "Takeaway 2", "Takeaway 3"]
+}}
+
+Be thorough - this will be shown to the user as a detailed analysis.""",
+            "mode": "research",
+            "session_id": str(uuid.uuid4()),
+            "thinking_mode": "senior-engineer"
+        }
         
-        chat = get_chat_instance(system_prompt)
-        user_msg = UserMessage(text=f"Summarize this article: {url}")
-        response = await chat.send_message(user_msg)
-        
-        data = safe_parse_json(response, {
-            "title": "Article",
-            "summary": "Summary not available",
-            "key_points": []
-        })
-        
-        return data
+        # Call MOLTBOT for deep article analysis
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            moltbot_response = await client.post(
+                f"{BACKEND_URL}/api/moltbot/chat",
+                json=moltbot_request
+            )
+            
+            if moltbot_response.status_code == 200:
+                moltbot_data = moltbot_response.json()
+                response_text = moltbot_data.get("response", "{}")
+                
+                # Parse structured response
+                data = safe_parse_json(response_text, {
+                    "title": "Article Summary",
+                    "summary": "Content analysis in progress...",
+                    "key_points": [],
+                    "full_content": response_text
+                })
+                
+                data["url"] = url
+                data["analyzed_by"] = "moltbot"
+                
+                return data
+            else:
+                raise Exception("MOLTBOT analysis failed")
         
     except Exception as e:
         logger.error(f"Article summary error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "title": "Article Summary",
+            "summary": "Unable to fetch article content. The URL may be protected or unavailable.",
+            "key_points": ["Content access limited"],
+            "error": str(e),
+            "url": url
+        }
 
 # Flight Price Search for Travel Agent
 class FlightSearchRequest(BaseModel):
