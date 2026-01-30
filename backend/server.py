@@ -3633,64 +3633,124 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
-    """Fetch and summarize a specific news article using Gemini web grounding"""
+    """Fetch and summarize article using real web scraping + Gemini with EMERGENT_LLM_KEY"""
     try:
+        from bs4 import BeautifulSoup
+        
         url = request.get("url")
         if not url or url == "#":
             raise HTTPException(status_code=400, detail="Invalid URL")
         
-        # Use Gemini with web grounding to fetch and analyze article
-        system_prompt = f"""You are a professional tech news analyst with web access.
+        # Step 1: Fetch actual article content
+        logger.info(f"Fetching article: {url}")
+        try:
+            response = requests.get(url, timeout=10, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            })
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extract title
+            title = ""
+            title_tag = soup.find('h1') or soup.find('title')
+            if title_tag:
+                title = title_tag.get_text().strip()
+            
+            # Extract article content
+            article_text = ""
+            
+            # Try common article selectors
+            article_selectors = [
+                'article',
+                {'class': re.compile('article|post-content|entry-content|story-body')},
+                {'id': re.compile('article|content|main')},
+            ]
+            
+            for selector in article_selectors:
+                if isinstance(selector, dict):
+                    content_div = soup.find('div', selector) or soup.find('article', selector)
+                else:
+                    content_div = soup.find(selector)
+                    
+                if content_div:
+                    # Get all paragraphs
+                    paragraphs = content_div.find_all('p')
+                    article_text = '\n\n'.join([p.get_text().strip() for p in paragraphs if len(p.get_text().strip()) > 50])
+                    if len(article_text) > 300:
+                        break
+            
+            # If still no content, get all paragraphs
+            if len(article_text) < 300:
+                all_paragraphs = soup.find_all('p')
+                article_text = '\n\n'.join([p.get_text().strip() for p in all_paragraphs if len(p.get_text().strip()) > 50])
+            
+            # Limit content length
+            if len(article_text) > 5000:
+                article_text = article_text[:5000] + "..."
+                
+            logger.info(f"Extracted {len(article_text)} chars from article")
+            
+        except Exception as fetch_error:
+            logger.error(f"Failed to fetch article: {fetch_error}")
+            return {
+                "title": "Unable to Access Article",
+                "summary": "This article could not be accessed. It may be behind a paywall, require authentication, or block automated access.",
+                "key_points": ["Content access restricted"],
+                "url": url,
+                "error": str(fetch_error),
+                "full_content": "Please visit the original article using the 'Read Full Article' button."
+            }
+        
+        # Step 2: Use Gemini with EMERGENT_LLM_KEY to analyze the content
+        system_prompt = f"""You are a professional tech news analyst.
 
-TASK: Analyze this article URL: {url}
-
-CRITICAL REQUIREMENTS:
-1. Use web access to FETCH the actual article content from the URL
-2. READ the full article text
-3. Extract and analyze all key information
-4. Provide comprehensive summary
+I have extracted content from a news article. Analyze it and provide a comprehensive summary.
 
 RESPONSE FORMAT (VALID JSON ONLY):
 {{
-    "title": "Actual article title from the page",
-    "summary": "Comprehensive 4-5 sentence summary covering main points, findings, and implications",
+    "title": "Clean article title",
+    "summary": "Comprehensive 4-5 sentence summary covering the main story, key findings, and implications",
     "key_points": [
-        "Key point 1 with specific details",
-        "Key point 2 with context",
-        "Key point 3 with implications",
-        "Key point 4 with numbers/data if available"
+        "Key point 1 - with specific details",
+        "Key point 2 - with context and numbers",
+        "Key point 3 - with implications",
+        "Key point 4 - with expert quotes or data"
     ],
-    "main_topic": "Primary topic or theme",
-    "technologies_mentioned": ["Technology 1", "Technology 2", "Technology 3"],
+    "main_topic": "Primary topic",
+    "technologies_mentioned": ["Tech 1", "Tech 2", "Tech 3"],
     "companies_mentioned": ["Company 1", "Company 2"],
     "reading_time": "5 min",
-    "full_content": "Detailed 2-3 paragraph analysis covering all major sections and points from the article",
+    "full_content": "Detailed 2-3 paragraph analysis covering all major points, quotes, data, and conclusions from the article",
     "takeaways": [
-        "Key takeaway 1 - what you should know",
-        "Key takeaway 2 - why it matters",
-        "Key takeaway 3 - future implications"
+        "Takeaway 1 - what you need to know",
+        "Takeaway 2 - why this matters",
+        "Takeaway 3 - what's next"
     ]
 }}
 
-Be thorough and accurate - extract real information from the article."""
+Be accurate and extract real information from the provided content."""
         
-        # Use Gemini pro for better analysis
-        chat = get_chat_instance(system_prompt, model_type="pro")
-        user_msg = UserMessage(text=f"Fetch and analyze this article NOW: {url}\n\nReturn ONLY valid JSON.")
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        user_msg = UserMessage(text=f"Article Title: {title}\n\nArticle Content:\n{article_text}\n\nAnalyze this and return ONLY valid JSON.")
         response = await chat.send_message(user_msg)
         
         # Parse response
         data = safe_parse_json(response, {
-            "title": "Article Summary",
-            "summary": "Analysis in progress...",
+            "title": title or "Article Summary",
+            "summary": "Analysis complete",
             "key_points": [],
             "full_content": response
         })
         
-        data["url"] = url
-        data["analyzed_by"] = "gemini_web_grounding"
+        # Ensure title
+        if not data.get("title") or data["title"] == "Article Summary":
+            data["title"] = title or "Article Summary"
         
-        logger.info(f"Successfully analyzed article: {url[:50]}...")
+        data["url"] = url
+        data["analyzed_by"] = "web_scraping_gemini"
+        
+        logger.info(f"Successfully analyzed article from: {url[:50]}")
         
         return data
         
@@ -3698,11 +3758,11 @@ Be thorough and accurate - extract real information from the article."""
         logger.error(f"Article summary error: {e}", exc_info=True)
         return {
             "title": "Article Summary",
-            "summary": "Unable to fetch article content. The URL may be protected, paywalled, or require authentication. Try visiting the original website.",
-            "key_points": ["Content access limited", "Original article link available below"],
+            "summary": "Unable to fetch and analyze article content. The article may be protected or require authentication.",
+            "key_points": ["Content access limited"],
             "error": str(e),
             "url": url,
-            "full_content": "This article content could not be accessed automatically. Please visit the original website using the 'Read Full Article' button below."
+            "full_content": "Please visit the original website using the 'Read Full Article' button below to read the full content."
         }
 
 # Flight Price Search for Travel Agent
