@@ -2673,7 +2673,8 @@ Provide helpful markdown with:
 
 Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images when provided."""
         
-        chat = get_chat_instance(system_prompt)
+        # Use vision-enabled chat if image is provided
+        chat = get_chat_instance(system_prompt, enable_vision=bool(request.image_base64))
         
         # Build context from conversation history
         context = ""
@@ -2682,11 +2683,17 @@ Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images
         
         # Handle image if provided
         if request.image_base64:
-            prompt_text = f"{context}\nUser: {request.message}\n\n**[📸 IMAGE PROVIDED]**\nThe user has uploaded an image/screenshot. Please analyze the image carefully and explain what you see in relation to {topic.get('name', 'the topic')}. Be specific about elements visible in the image."
-            user_msg = UserMessage(
-                text=prompt_text,
-                images=[ImageContent(base64=request.image_base64)]
-            )
+            prompt_text = f"{context}\nUser: {request.message}\n\n**[📸 IMAGE PROVIDED - ANALYZE IT NOW]**\nThe user has uploaded an image/screenshot about {topic.get('name', 'the topic')}.\n\nYOU MUST:\n1. Look at the image carefully\n2. Describe what you see specifically\n3. Explain each element in detail\n4. Connect it to the learning topic\n\nStart your response with: '## 📸 Image Analysis' and describe what you see."
+            
+            try:
+                user_msg = UserMessage(
+                    text=prompt_text,
+                    images=[ImageContent(base64=request.image_base64)]
+                )
+            except Exception as img_error:
+                logger.error(f"Image content error: {img_error}")
+                # Fallback: try with just text
+                user_msg = UserMessage(text=f"{prompt_text}\n\n[Note: There was an issue loading the image, but I'll help with your question: {request.message}]")
         else:
             user_msg = UserMessage(text=f"{context}\nUser: {request.message}")
         
