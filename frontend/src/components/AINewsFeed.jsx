@@ -197,14 +197,14 @@ const AINewsFeed = () => {
               <Loader2 className="w-8 h-8 animate-spin text-[#667eea] mb-3" />
               <p className="text-white/60 text-sm">🔍 Researching latest news...</p>
             </div>
-          ) : filteredNews.length === 0 ? (
+          ) : displayNews.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <AlertCircle className="w-12 h-12 text-white/30 mb-3" />
               <p className="text-white/60 text-sm">No articles found</p>
               <p className="text-white/40 text-xs mt-1">Try a different category or refresh</p>
             </div>
           ) : (
-            filteredNews.map((article, idx) => (
+            displayNews.map((article, idx) => (
               <div
                 key={article.id || idx}
                 onClick={() => handleArticleClick(article)}
