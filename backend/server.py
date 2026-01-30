@@ -2710,14 +2710,14 @@ FORMAT YOUR RESPONSE:
 {context}"""
             
             try:
-                # For Gemini vision, pass image in content array format
+                # CORRECT FORMAT: Use file_contents array, not images array!
                 user_msg = UserMessage(
                     text=prompt_text,
-                    images=[ImageContent(base64=request.image_base64)]
+                    file_contents=[ImageContent(image_base64=request.image_base64)]  # Fixed!
                 )
-                logger.info(f"Sending image to vision model - Size: {len(request.image_base64)} chars")
+                logger.info(f"✅ Sending image to Gemini vision - Size: {len(request.image_base64)} chars")
             except Exception as img_error:
-                logger.error(f"Image content creation error: {img_error}", exc_info=True)
+                logger.error(f"❌ Image content creation error: {img_error}", exc_info=True)
                 # Fallback without image
                 user_msg = UserMessage(text=f"{prompt_text}\n\n[ERROR: Could not load image. Error: {str(img_error)}]")
         else:
