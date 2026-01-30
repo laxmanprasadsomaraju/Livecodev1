@@ -157,14 +157,14 @@ const AINewsFeed = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                fetchNews(searchQuery);
+              if (e.key === 'Enter' && searchInput.trim()) {
+                fetchNews(searchInput);
               }
             }}
-            placeholder="🔍 Search any news topic..."
+            placeholder="🔍 Search any news topic and press Enter..."
             className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-[#667eea] transition-all"
           />
         </div>
