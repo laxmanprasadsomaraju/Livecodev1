@@ -3492,40 +3492,42 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Use MOLTBOT research mode for news - IT WORKS!"""
+    """Use MOLTBOT research mode for news"""
     try:
-        # Simple search query
+        # Search query
         if query:
             search_text = query
         elif category == "ai":
-            search_text = "latest AI news OpenAI ChatGPT Gemini Claude machine learning"
+            search_text = "AI artificial intelligence"
         elif category == "tech":
-            search_text = "latest technology news companies innovation"
+            search_text = "technology"
         elif category == "coding":
-            search_text = "latest programming developer news frameworks"
+            search_text = "programming coding"
         elif category == "startups":
-            search_text = "latest startup funding venture capital"
+            search_text = "startups funding"
         else:
-            search_text = f"latest {category} news"
+            search_text = category
         
-        # Call MOLTBOT in research mode - THIS WORKS!
+        # Call MOLTBOT - it returns formatted text with URLs
         moltbot_request = MoltbotChatRequest(
-            message=f"""Search web and find 10 latest news articles about: {search_text}
+            message=f"""Find 10 latest {search_text} news articles.
 
-IMPORTANT: 
-- Use web search to find REAL articles
-- Get actual URLs from TechCrunch, The Verge, Wired, Reuters
-- Extract real titles and summaries
+For each article provide:
+- Title
+- Summary (2 sentences)
+- URL (real working link)
+- Source name
 
-Return as JSON:
-{{
-    "articles": [
-        {{"title": "...", "summary": "...", "url": "https://...", "source": "..."}}
-    ]
-}}""",
+Format as JSON array:
+[
+  {{"title": "...", "summary": "...", "url": "https://...", "source": "..."}},
+  ...
+]
+
+Only return the JSON array, nothing else.""",
             agent_mode="research",
             session_id=str(uuid.uuid4()),
-            thinking_mode="senior-engineer",
+            thinking_mode="normal",
             skill_level="expert"
         )
         
@@ -3533,31 +3535,56 @@ Return as JSON:
         moltbot_response = await moltbot_chat(moltbot_request)
         response_text = moltbot_response["response"]
         
-        # Parse JSON from response
-        data = safe_parse_json(response_text, {"articles": []})
-        articles = data.get("articles", [])
+        logger.info(f"MOLTBOT response length: {len(response_text)}")
+        
+        # Try to extract JSON from response
+        articles = []
+        
+        # Look for JSON array in response
+        import re
+        json_match = re.search(r'\[[\s\S]*\]', response_text)
+        if json_match:
+            json_str = json_match.group(0)
+            try:
+                articles = json.loads(json_str)
+            except:
+                logger.error("Failed to parse JSON from MOLTBOT")
+        
+        # If no JSON found, try to parse markdown/text
+        if not articles:
+            # Extract URLs from markdown links
+            url_pattern = r'\[(.*?)\]\((https://.*?)\)'
+            matches = re.findall(url_pattern, response_text)
+            
+            for title, url in matches[:10]:
+                articles.append({
+                    "title": title,
+                    "summary": "Latest news article",
+                    "url": url,
+                    "source": "News"
+                })
         
         # Add required fields
         for article in articles:
-            article["id"] = article.get("id", str(uuid.uuid4()))
+            article["id"] = str(uuid.uuid4())
             article["category"] = category
-            article["publishedAt"] = article.get("publishedAt", datetime.now(timezone.utc).isoformat())
+            article["publishedAt"] = datetime.now(timezone.utc).isoformat()
             article["verified"] = True
         
         # Filter valid URLs
         valid_articles = [a for a in articles if a.get("url") and "http" in a["url"]]
         
-        logger.info(f"MOLTBOT found {len(valid_articles)} articles")
+        logger.info(f"Found {len(valid_articles)} articles from MOLTBOT")
         
         return {
             "articles": valid_articles,
             "query": search_text,
-            "source": "moltbot_research"
+            "source": "moltbot"
         }
         
     except Exception as e:
         logger.error(f"MOLTBOT news error: {e}", exc_info=True)
-        return {"articles": [], "query": search_text, "error": str(e)}
+        return {"articles": [], "query": search_text or category, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
