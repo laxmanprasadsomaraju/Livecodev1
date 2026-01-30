@@ -10,6 +10,7 @@ import LearningPathView from "./components/LearningPathView";
 import AINewsFeed from "./components/AINewsFeed";
 import MoltbotView from "./components/MoltbotView";
 import MoltbotFullView from "./components/MoltbotFullView";
+import CVIntelligenceView from "./components/CVIntelligenceView";
 import { MentorProvider } from "./contexts/MentorContext";
 
 function App() {
