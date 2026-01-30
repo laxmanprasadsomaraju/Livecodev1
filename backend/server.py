@@ -3492,196 +3492,87 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Search for REAL news using multiple search strategies"""
+    """Search for news using Gemini research with EMERGENT_LLM_KEY"""
     try:
-        from bs4 import BeautifulSoup
-        import re
-        
-        # Multiple search queries for better coverage
-        search_queries = []
-        
+        # Create focused research query
         if category == "ai" or category == "all":
-            search_queries = [
-                "latest AI artificial intelligence news",
-                "OpenAI ChatGPT GPT news",
-                "Google Gemini AI news",
-                "machine learning breakthrough",
-                "generative AI news",
-                "Claude Anthropic AI news"
-            ]
+            research_query = "Find me 10 latest AI and technology news articles from January 2026. Include OpenAI, Google Gemini, Anthropic Claude, machine learning breakthroughs. Give me REAL article titles, summaries, and URLs from TechCrunch, The Verge, Wired."
         elif category == "tech":
-            search_queries = [
-                "technology news latest",
-                "tech innovation news",
-                "startup technology news"
-            ]
+            research_query = "Find me 10 latest technology news articles from January 2026. Include hardware, software, tech companies. Give me REAL article titles, summaries, and URLs."
         elif category == "coding":
-            search_queries = [
-                "programming development news",
-                "software engineering news",
-                "developer tools news"
-            ]
+            research_query = "Find me 10 latest programming and developer news from January 2026. Include new frameworks, languages, tools. Give me REAL article titles, summaries, and URLs."
         elif category == "startups":
-            search_queries = [
-                "startup funding news",
-                "tech startup news",
-                "venture capital news"
-            ]
+            research_query = "Find me 10 latest startup and venture capital news from January 2026. Include funding rounds, new startups, acquisitions. Give me REAL article titles, summaries, and URLs."
+        else:
+            research_query = f"Find me 10 latest {category} news articles from January 2026"
         
-        # Add custom query if provided
         if query:
-            search_queries.insert(0, query)
+            research_query = query
         
-        all_articles = []
+        # Use Gemini to research with web search
+        system_prompt = f"""You are a tech news researcher with real-time web search access.
+
+CRITICAL TASK: Find REAL, RECENT news articles published in January 2026.
+
+REQUIREMENTS:
+1. Use web search to find ACTUAL articles
+2. Get REAL URLs from TechCrunch, The Verge, Wired, Ars Technica, Reuters, Bloomberg
+3. Extract actual article titles
+4. Get real summaries
+5. Verify publication dates
+
+RESPONSE FORMAT (VALID JSON ONLY):
+{{
+    "articles": [
+        {{
+            "id": "unique_id",
+            "title": "REAL Article Title from Website",
+            "summary": "Actual 2-3 sentence summary from the article",
+            "source": "Source name (TechCrunch, The Verge, etc)",
+            "url": "REAL working URL - https://...",
+            "category": "{category}",
+            "publishedAt": "2026-01-29T10:00:00Z",
+            "verified": true
+        }}
+    ]
+}}
+
+Find 8-10 recent articles. Use web search. Return ONLY valid JSON."""
         
-        # Try multiple search approaches
-        for search_query in search_queries[:3]:  # Try first 3 queries
-            logger.info(f"Searching for: {search_query}")
-            
-            # Approach 1: Direct scraping of news sites
-            news_sources = [
-                {
-                    "url": f"https://techcrunch.com/category/artificial-intelligence/",
-                    "name": "TechCrunch",
-                    "selector": "article"
-                },
-                {
-                    "url": "https://www.theverge.com/ai-artificial-intelligence",
-                    "name": "The Verge", 
-                    "selector": "article"
-                }
-            ]
-            
-            for source in news_sources:
-                try:
-                    response = requests.get(source["url"], timeout=5, headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    })
-                    
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.content, 'html.parser')
-                        articles = soup.find_all(source["selector"], limit=5)
-                        
-                        for article in articles:
-                            # Try to extract article info
-                            title_elem = article.find('h2') or article.find('h3') or article.find('a')
-                            link_elem = article.find('a', href=True)
-                            
-                            if title_elem and link_elem:
-                                title = title_elem.get_text().strip()
-                                url = link_elem['href']
-                                
-                                # Make URL absolute
-                                if url.startswith('/'):
-                                    base_url = source["url"].split('/category')[0] if '/category' in source["url"] else source["url"].rsplit('/', 1)[0]
-                                    url = base_url + url
-                                
-                                # Get description
-                                desc_elem = article.find('p')
-                                description = desc_elem.get_text().strip()[:300] if desc_elem else f"Latest from {source['name']}"
-                                
-                                if len(title) > 20 and url.startswith('http'):
-                                    all_articles.append({
-                                        "id": str(uuid.uuid4()),
-                                        "title": title,
-                                        "summary": description,
-                                        "source": source["name"],
-                                        "url": url,
-                                        "category": category,
-                                        "publishedAt": datetime.now(timezone.utc).isoformat(),
-                                        "verified": True
-                                    })
-                except Exception as e:
-                    logger.error(f"Error scraping {source['name']}: {e}")
-                    continue
-            
-            # Approach 2: Try googlesearch if we don't have enough articles
-            if len(all_articles) < 5:
-                try:
-                    from googlesearch import search as google_search
-                    
-                    search_results = []
-                    for url in google_search(search_query, num_results=10):
-                        if isinstance(url, str):
-                            search_results.append(url)
-                        elif hasattr(url, 'url'):
-                            search_results.append(url.url)
-                        
-                        if len(search_results) >= 10:
-                            break
-                    
-                    # Process Google results
-                    trusted_domains = ["techcrunch.com", "theverge.com", "wired.com", "arstechnica.com"]
-                    
-                    for url in search_results:
-                        if any(domain in url for domain in trusted_domains):
-                            try:
-                                # Fetch page
-                                resp = requests.get(url, timeout=5, headers={
-                                    'User-Agent': 'Mozilla/5.0'
-                                })
-                                
-                                if resp.status_code == 200:
-                                    soup = BeautifulSoup(resp.content, 'html.parser')
-                                    
-                                    title_tag = soup.find('h1') or soup.find('title')
-                                    title = title_tag.get_text().strip() if title_tag else ""
-                                    
-                                    meta_desc = soup.find('meta', {'name': 'description'})
-                                    description = meta_desc.get('content', '')[:300] if meta_desc else ""
-                                    
-                                    # Get source from domain
-                                    source = "Tech News"
-                                    if "techcrunch" in url:
-                                        source = "TechCrunch"
-                                    elif "theverge" in url:
-                                        source = "The Verge"
-                                    elif "wired" in url:
-                                        source = "Wired"
-                                    elif "arstechnica" in url:
-                                        source = "Ars Technica"
-                                    
-                                    if len(title) > 20:
-                                        all_articles.append({
-                                            "id": str(uuid.uuid4()),
-                                            "title": title,
-                                            "summary": description or f"Latest AI news from {source}",
-                                            "source": source,
-                                            "url": url,
-                                            "category": category,
-                                            "publishedAt": datetime.now(timezone.utc).isoformat(),
-                                            "verified": True
-                                        })
-                            except:
-                                continue
-                
-                except Exception as search_error:
-                    logger.error(f"Google search error: {search_error}")
-            
-            # If we have enough articles, stop searching
-            if len(all_articles) >= 8:
-                break
+        # Use Gemini with EMERGENT_LLM_KEY
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        user_msg = UserMessage(text=research_query)
+        response = await chat.send_message(user_msg)
         
-        # Remove duplicates by URL
-        seen_urls = set()
-        unique_articles = []
-        for article in all_articles:
-            if article['url'] not in seen_urls:
-                seen_urls.add(article['url'])
-                unique_articles.append(article)
-                if len(unique_articles) >= 10:
-                    break
+        logger.info(f"Got response from Gemini for news research")
         
-        logger.info(f"Returning {len(unique_articles)} articles for category: {category}")
+        # Parse JSON response
+        data = safe_parse_json(response, {"articles": []})
+        articles = data.get("articles", [])
+        
+        # Validate articles
+        valid_articles = []
+        for article in articles:
+            if article.get("url") and article["url"] not in ["#", "", "N/A", "null"]:
+                if article.get("title") and len(article["title"]) > 15:
+                    # Add defaults
+                    article["id"] = article.get("id", str(uuid.uuid4()))
+                    article["category"] = category
+                    article["verified"] = True
+                    if not article.get("publishedAt"):
+                        article["publishedAt"] = datetime.now(timezone.utc).isoformat()
+                    valid_articles.append(article)
+        
+        logger.info(f"Found {len(valid_articles)} valid articles for {category}")
         
         return {
-            "articles": unique_articles,
-            "query": search_queries[0] if search_queries else category,
-            "source": "multi_source_search"
+            "articles": valid_articles,
+            "query": research_query,
+            "source": "gemini_research"
         }
         
     except Exception as e:
-        logger.error(f"Live news search error: {e}", exc_info=True)
+        logger.error(f"News search error: {e}", exc_info=True)
         return {
             "articles": [],
             "query": category,
