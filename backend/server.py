@@ -4129,6 +4129,273 @@ Be specific to what you see. Help the student understand the visual content in r
             "error": str(e)
         }
 
+
+# ============== ADAPTIVE QUIZ SYSTEM ==============
+
+class AdaptiveQuizRequest(BaseModel):
+    video_id: str
+    video_title: str
+    current_time: float
+    transcript_covered: str  # Transcript covered so far
+    skill_level: str = "intermediate"
+    previous_wrong_topics: List[str] = []  # Topics user got wrong
+
+@api_router.post("/learning/video/adaptive-quiz")
+async def adaptive_quiz_generation(request: AdaptiveQuizRequest):
+    """Generate adaptive quiz based on video progress and what's been covered"""
+    try:
+        skill_context = get_skill_context(request.skill_level)
+        
+        # Emphasize previously wrong topics
+        focus_areas = ""
+        if request.previous_wrong_topics:
+            focus_areas = f"\n\nFOCUS ON THESE TOPICS (user struggled with):\n" + "\n".join([f"- {topic}" for topic in request.previous_wrong_topics])
+        
+        system_prompt = f"""You are an adaptive quiz generator for video learning.
+
+VIDEO: {request.video_title}
+PROGRESS: {int(request.current_time)} seconds
+{skill_context}
+
+WHAT'S BEEN COVERED SO FAR:
+{request.transcript_covered[:1500]}...
+{focus_areas}
+
+CREATE ADAPTIVE QUIZ:
+1. Generate a question testing understanding of content covered SO FAR
+2. If user struggled with certain topics, create questions around those
+3. 4 multiple choice options (A, B, C, D) - make distractors plausible
+4. Include clear explanation for correct answer AND why others are wrong
+
+FORMAT AS JSON:
+{{
+    "question": "Targeted question based on what's been explained",
+    "options": {{
+        "A": "option 1",
+        "B": "option 2", 
+        "C": "option 3",
+        "D": "option 4"
+    }},
+    "correct_answer": "B",
+    "explanation": "Why B is correct and others are wrong",
+    "topic_tested": "Specific topic being tested",
+    "difficulty": "easy/medium/hard"
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        user_msg = UserMessage(text=f"Generate adaptive quiz for progress up to {int(request.current_time)} seconds")
+        response = await chat.send_message(user_msg)
+        
+        quiz_data = safe_parse_json(response, {
+            "question": "Based on what you've learned so far, what is the main concept?",
+            "options": {
+                "A": "Concept A",
+                "B": "Concept B",
+                "C": "Concept C",
+                "D": "All of the above"
+            },
+            "correct_answer": "B",
+            "explanation": "The video has primarily covered Concept B",
+            "topic_tested": request.video_title,
+            "difficulty": "medium"
+        })
+        
+        return quiz_data
+        
+    except Exception as e:
+        logger.error(f"Adaptive quiz error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class WrongAnswerFeedbackRequest(BaseModel):
+    question: str
+    user_answer: str
+    correct_answer: str
+    explanation: str
+    topic: str
+    skill_level: str = "intermediate"
+
+@api_router.post("/learning/video/wrong-answer-feedback")
+async def wrong_answer_feedback(request: WrongAnswerFeedbackRequest):
+    """Provide detailed feedback for wrong answers and generate follow-up quiz"""
+    try:
+        skill_context = get_skill_context(request.skill_level)
+        
+        system_prompt = f"""You are a patient tutor helping a student understand their mistake.
+
+{skill_context}
+
+ORIGINAL QUESTION: {request.question}
+USER'S ANSWER: {request.user_answer}
+CORRECT ANSWER: {request.correct_answer}
+TOPIC: {request.topic}
+
+PROVIDE:
+1. Empathetic explanation of WHY the user's answer was incorrect
+2. Clear explanation of why the correct answer is right
+3. Key concept they need to understand
+4. A NEW follow-up question on the SAME topic to reinforce learning
+
+FORMAT AS JSON:
+{{
+    "feedback": "Empathetic explanation of the mistake",
+    "correct_reasoning": "Why correct answer is right",
+    "key_concept": "Core concept to understand",
+    "follow_up_question": {{
+        "question": "New question on same topic",
+        "options": {{"A": "opt1", "B": "opt2", "C": "opt3", "D": "opt4"}},
+        "correct_answer": "A",
+        "explanation": "Why this is correct"
+    }}
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        user_msg = UserMessage(text=f"Explain mistake and create follow-up question for: {request.topic}")
+        response = await chat.send_message(user_msg)
+        
+        feedback_data = safe_parse_json(response, {
+            "feedback": "Let's understand why that wasn't the right answer.",
+            "correct_reasoning": request.explanation,
+            "key_concept": request.topic,
+            "follow_up_question": {
+                "question": "Let's try another question on this topic",
+                "options": {"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+                "correct_answer": "A",
+                "explanation": "Based on the concept"
+            }
+        })
+        
+        return feedback_data
+        
+    except Exception as e:
+        logger.error(f"Wrong answer feedback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============== ENHANCED CONTEXTUAL HELP ==============
+
+class EnhancedContextualHelpRequest(BaseModel):
+    video_id: str
+    video_title: str
+    current_time: float
+    transcript_until_now: str  # ALL transcript covered until current time
+    help_type: str  # explain, example, deeper, quiz
+    skill_level: str = "intermediate"
+    user_question: Optional[str] = None
+
+@api_router.post("/learning/video/enhanced-help")
+async def enhanced_contextual_help(request: EnhancedContextualHelpRequest):
+    """Provide enhanced contextual help based on ENTIRE video progress so far"""
+    try:
+        skill_context = get_skill_context(request.skill_level)
+        
+        help_instructions = {
+            "explain": "Explain the CURRENT concept being discussed at this timestamp. Be clear and detailed.",
+            "example": "Provide a REAL-WORLD EXAMPLE of the current concept. Make it relatable and practical.",
+            "deeper": "Go DEEPER into the current concept. Explain the WHY and HOW. Provide advanced insights.",
+            "quiz": "Create a quick quiz question based on what's been covered SO FAR in the video."
+        }
+        
+        instruction = help_instructions.get(request.help_type, help_instructions["explain"])
+        
+        system_prompt = f"""You are an AI learning companion watching a video WITH the student.
+
+VIDEO: {request.video_title}
+CURRENT TIMESTAMP: {int(request.current_time)} seconds
+{skill_context}
+
+WHAT'S BEEN EXPLAINED SO FAR (full context):
+{request.transcript_until_now}
+
+{instruction}
+
+YOU MUST:
+1. Reference what's been said in the video SPECIFICALLY
+2. Use the timestamp context to be relevant
+3. Connect current concept to what was explained earlier if relevant
+4. Be conversational and supportive
+
+Provide response in structured markdown with emojis."""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        
+        if request.user_question:
+            user_msg = UserMessage(text=f"At {int(request.current_time)}s: {request.user_question}")
+        else:
+            user_msg = UserMessage(text=f"Provide {request.help_type} help for content at {int(request.current_time)} seconds")
+        
+        response = await chat.send_message(user_msg)
+        
+        return {
+            "help": response,
+            "timestamp": request.current_time,
+            "help_type": request.help_type,
+            "video_context": f"Based on {int(request.current_time)} seconds of video content"
+        }
+        
+    except Exception as e:
+        logger.error(f"Enhanced contextual help error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============== VISUAL EXPLANATION GENERATOR ==============
+
+class VisualExplanationRequest(BaseModel):
+    topic: str
+    current_context: str  # What's being discussed
+    skill_level: str = "intermediate"
+    request_type: str = "diagram"  # diagram, flowchart, comparison, timeline
+
+@api_router.post("/learning/visual-explanation")
+async def generate_visual_explanation(request: VisualExplanationRequest):
+    """Generate visual explanation with diagrams when user requests visual learning"""
+    try:
+        skill_context = get_skill_context(request.skill_level)
+        
+        system_prompt = f"""You are a visual learning expert creating educational content.
+
+TOPIC: {request.topic}
+CONTEXT: {request.current_context}
+{skill_context}
+
+CREATE VISUAL EXPLANATION:
+1. Use clear structure with markdown headings
+2. Include emojis for visual appeal (📊 🔄 ⚡ 🎯 etc.)
+3. Use bullet points and numbered lists
+4. Create ASCII diagrams or describe visuals clearly
+5. Include step-by-step breakdowns
+6. Add analogies and real-world examples
+
+FORMAT:
+## 🎯 Core Concept
+[Clear definition with analogy]
+
+## 📊 Visual Breakdown
+[Step-by-step with clear structure]
+
+## 🔄 How It Works
+[Process flow or mechanism]
+
+## 💡 Key Points
+[Important takeaways]
+
+## 🌟 Real-World Application
+[Practical examples]
+
+Make it visually engaging and easy to understand!"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        user_msg = UserMessage(text=f"Create visual explanation for: {request.topic}")
+        response = await chat.send_message(user_msg)
+        
+        return {
+            "explanation": response,
+            "topic": request.topic,
+            "has_visual_structure": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Visual explanation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== MOLTBOT MULTI-AGENT SYSTEM ==============
 
 class MoltbotChatRequest(BaseModel):
