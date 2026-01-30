@@ -2409,40 +2409,70 @@ async def learning_onboard(request: LearningOnboardRequest):
         if industry in INDUSTRY_SKILL_TREES:
             skill_tree = INDUSTRY_SKILL_TREES[industry]
         else:
-            # Generate custom skill tree using AI for ANY topic
+            # Generate custom skill tree using AI for ANY topic with domain expertise
             logger.info(f"Generating custom skill tree for: {request.targetRole}")
-            skill_tree_prompt = f"""Create a comprehensive learning curriculum for: {request.targetRole}
+            
+            # Detect domain and use specialized prompt
+            domain_expertise = {
+                "cooking": "culinary arts expert specializing in cooking techniques, cuisine types, and recipe development",
+                "medical": "medical education specialist with deep knowledge of anatomy, physiology, and clinical skills",
+                "art": "art education expert covering techniques, art history, and creative expression",
+                "music": "music education specialist covering theory, instruments, composition, and performance",
+                "fitness": "fitness and wellness expert covering exercise science, nutrition, and training methodologies",
+                "language": "language learning specialist using proven methods for language acquisition",
+                "business": "business education expert covering entrepreneurship, management, and strategy",
+                "photography": "photography education specialist covering techniques, equipment, and visual composition",
+                "writing": "creative writing and journalism expert covering storytelling, editing, and publishing"
+            }
+            
+            # Detect domain from target role
+            detected_domain = "general curriculum designer"
+            role_lower = request.targetRole.lower()
+            for domain, expertise in domain_expertise.items():
+                if domain in role_lower or any(keyword in role_lower for keyword in [domain[:4]]):
+                    detected_domain = expertise
+                    break
+            
+            skill_tree_prompt = f"""You are a {detected_domain} creating a comprehensive learning curriculum.
 
-Generate a skill tree with 5-8 main topics, each with 3-5 subtopics.
+TARGET ROLE: {request.targetRole}
+
+Generate a professional, industry-appropriate skill tree with 5-8 main topics, each with 3-5 subtopics.
+Make it SPECIFIC to {request.targetRole} - use actual terminology and skills from this field.
 
 RESPOND ONLY WITH VALID JSON:
 {{
-    "name": "{request.targetRole} Curriculum",
+    "name": "{request.targetRole} Professional Curriculum",
     "nodes": [
         {{
             "id": "topic_1",
-            "name": "Topic Name",
+            "name": "Specific Topic Name (use real terminology)",
             "level": "Beginner",
             "estimatedTime": "4 weeks",
             "status": "not_started",
-            "objective": "Clear learning objective",
+            "objective": "Clear, actionable learning objective",
             "children": [
-                {{"id": "subtopic_1", "name": "Subtopic", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started"}},
-                {{"id": "subtopic_2", "name": "Subtopic 2", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started"}}
+                {{"id": "subtopic_1", "name": "Specific Subtopic", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started", "objective": "Learn X skill"}},
+                {{"id": "subtopic_2", "name": "Another Subtopic", "level": "Beginner", "estimatedTime": "1 week", "status": "not_started", "objective": "Master Y"}}
             ]
         }},
         {{
             "id": "topic_2",
-            "name": "Topic 2",
+            "name": "Intermediate Topic",
             "level": "Intermediate",
             "estimatedTime": "4 weeks",
             "status": "not_started",
+            "objective": "Build expertise",
             "children": [...]
         }}
     ]
 }}
 
-Make it comprehensive and industry-appropriate for: {request.targetRole}"""
+REQUIREMENTS:
+- Use REAL terminology from {request.targetRole} field
+- Progress from beginner → intermediate → advanced
+- Include practical, hands-on topics
+- Be comprehensive and industry-standard"""
             
             try:
                 chat = get_chat_instance("You are an expert curriculum designer.")
