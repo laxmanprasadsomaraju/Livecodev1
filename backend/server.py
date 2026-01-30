@@ -3568,6 +3568,102 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
                 logger.error(f"Error parsing feed {feed_url}: {e}")
                 continue
         
+        # If startups category, also scrape Product Hunt and Y Combinator
+        if category == "startups" and len(all_articles) < 10:
+            logger.info("Scraping Product Hunt for startups...")
+            try:
+                from bs4 import BeautifulSoup
+                
+                response = requests.get(
+                    "https://www.producthunt.com/",
+                    timeout=10,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Find product links
+                    links = soup.find_all('a', href=True, limit=30)
+                    
+                    for link in links:
+                        url = link['href']
+                        
+                        # Product Hunt post URLs
+                        if '/posts/' in url and not url.startswith('http'):
+                            url = f"https://www.producthunt.com{url}"
+                        
+                        if 'producthunt.com/posts/' in url:
+                            # Get title from link text or nested elements
+                            title = link.get_text(strip=True)
+                            
+                            # Skip if title too short or too long
+                            if 10 < len(title) < 150 and not title.startswith('Product Hunt'):
+                                all_articles.append({
+                                    "id": str(uuid.uuid4()),
+                                    "title": f"🚀 {title}",
+                                    "summary": "New product launch on Product Hunt",
+                                    "url": url,
+                                    "source": "Product Hunt",
+                                    "category": "startups",
+                                    "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                    "verified": True
+                                })
+                        
+                        if len(all_articles) >= 15:
+                            break
+                
+                logger.info(f"Product Hunt: Total {len(all_articles)} articles")
+                
+            except Exception as e:
+                logger.error(f"Product Hunt scraping error: {e}")
+        
+        # Also scrape Y Combinator for startups
+        if category == "startups" and len(all_articles) < 10:
+            logger.info("Scraping Y Combinator companies...")
+            try:
+                from bs4 import BeautifulSoup
+                
+                response = requests.get(
+                    "https://www.ycombinator.com/companies",
+                    timeout=10,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Find company links
+                    links = soup.find_all('a', href=True, limit=30)
+                    
+                    for link in links:
+                        url = link['href']
+                        title = link.get_text(strip=True)
+                        
+                        # Y Combinator company URLs
+                        if '/companies/' in url and not url.startswith('http'):
+                            url = f"https://www.ycombinator.com{url}"
+                        
+                        if 'ycombinator.com/companies/' in url and len(title) > 5 and len(title) < 100:
+                            all_articles.append({
+                                "id": str(uuid.uuid4()),
+                                "title": f"💼 {title}",
+                                "summary": "Y Combinator backed startup",
+                                "url": url,
+                                "source": "Y Combinator",
+                                "category": "startups",
+                                "publishedAt": datetime.now(timezone.utc).isoformat(),
+                                "verified": True
+                            })
+                        
+                        if len(all_articles) >= 15:
+                            break
+                
+                logger.info(f"Y Combinator: Total {len(all_articles)} articles")
+                
+            except Exception as e:
+                logger.error(f"Y Combinator scraping error: {e}")
+        
         # Remove duplicates
         seen_urls = set()
         unique_articles = []
