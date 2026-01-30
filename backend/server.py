@@ -5812,6 +5812,523 @@ async def get_available_models():
 
 app.include_router(ai_router)
 
+# ============== CV INTELLIGENCE & INTERVIEW MENTOR ==============
+
+# Collections for CV data
+cv_collection = db.cvs
+interviews_collection = db.interviews
+
+# CV Models
+class CVSection(BaseModel):
+    id: str
+    type: str  # 'experience', 'education', 'skills', 'projects', 'summary', 'certifications', 'other'
+    title: str
+    content: str
+    bullets: Optional[List[str]] = None
+    start_line: int
+    end_line: int
+    raw_text: str
+
+class ParsedCV(BaseModel):
+    cv_id: str
+    filename: str
+    file_type: str  # 'pdf', 'docx', 'latex', 'txt'
+    raw_text: str
+    sections: List[CVSection]
+    contact_info: Optional[Dict[str, str]] = None
+    total_lines: int
+    created_at: str
+
+class CVEditRequest(BaseModel):
+    cv_id: str
+    section_id: Optional[str] = None
+    line_start: Optional[int] = None
+    line_end: Optional[int] = None
+    edit_instruction: str
+    preserve_latex: bool = False
+
+class CVEditResponse(BaseModel):
+    original_text: str
+    edited_text: str
+    explanation: str
+    changes_summary: List[str]
+
+class JobTargetRequest(BaseModel):
+    cv_id: str
+    target_role: str
+    company_name: str
+    job_description: Optional[str] = None
+    job_url: Optional[str] = None
+
+class GapAnalysisResponse(BaseModel):
+    match_score: int
+    missing_keywords: List[str]
+    skill_gaps: List[Dict[str, Any]]
+    experience_gaps: List[Dict[str, Any]]
+    strengths: List[str]
+    recommendations: List[Dict[str, Any]]
+    honest_additions: List[str]
+    do_not_fake: List[str]
+    mentor_advice: str
+
+class CompanyResearchResponse(BaseModel):
+    company_name: str
+    industry: str
+    description: str
+    culture_insights: List[str]
+    interview_tips: List[str]
+    common_questions: List[str]
+    values: List[str]
+    recent_news: Optional[List[str]] = None
+    similar_roles: List[Dict[str, Any]]
+
+# Helper functions for CV parsing
+def extract_text_from_pdf(file_content: bytes) -> str:
+    """Extract text from PDF using pdfplumber"""
+    import pdfplumber
+    import io
+    
+    text_parts = []
+    with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text_parts.append(page_text)
+    return "\n".join(text_parts)
+
+def extract_text_from_docx(file_content: bytes) -> str:
+    """Extract text from DOCX using python-docx"""
+    from docx import Document
+    import io
+    
+    doc = Document(io.BytesIO(file_content))
+    text_parts = []
+    for para in doc.paragraphs:
+        text_parts.append(para.text)
+    return "\n".join(text_parts)
+
+def is_latex_document(text: str) -> bool:
+    """Check if text is LaTeX"""
+    latex_indicators = ['\\documentclass', '\\begin{document}', '\\section', '\\subsection', '\\item', '\\textbf']
+    return any(indicator in text for indicator in latex_indicators)
+
+async def ai_parse_cv_sections(raw_text: str, file_type: str) -> Dict:
+    """Use AI to intelligently parse CV sections"""
+    system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract structured sections.
+
+RULES:
+1. Identify all major sections (Experience, Education, Skills, Projects, Summary, Certifications, etc.)
+2. For each section, extract:
+   - Section type (experience, education, skills, projects, summary, certifications, other)
+   - Section title as written in CV
+   - Full content of that section
+   - Individual bullet points if present
+   - Approximate line numbers (start and end)
+3. Also extract contact info (name, email, phone, linkedin, github, etc.)
+4. Be thorough - don't miss any sections
+5. Preserve exact formatting and text
+
+RESPOND ONLY WITH VALID JSON:
+{
+    "contact_info": {
+        "name": "Full Name",
+        "email": "email@example.com",
+        "phone": "+1234567890",
+        "linkedin": "linkedin.com/in/...",
+        "github": "github.com/...",
+        "location": "City, Country"
+    },
+    "sections": [
+        {
+            "type": "experience",
+            "title": "Work Experience",
+            "content": "Full text of section",
+            "bullets": ["Bullet 1", "Bullet 2"],
+            "start_line": 10,
+            "end_line": 30
+        }
+    ]
+}"""
+    
+    chat = get_chat_instance(system_prompt, model_type="fast")
+    msg = UserMessage(text=f"Parse this CV:\n\n{raw_text[:15000]}")  # Limit for context
+    response = await chat.send_message(msg)
+    
+    return safe_parse_json(response, {
+        "contact_info": {},
+        "sections": []
+    })
+
+@api_router.post("/cv/upload")
+async def upload_cv(file: UploadFile = File(...)):
+    """Upload and parse a CV (PDF, DOCX, LaTeX, or TXT)"""
+    try:
+        cv_id = str(uuid.uuid4())
+        content = await file.read()
+        filename = file.filename.lower()
+        
+        # Determine file type and extract text
+        if filename.endswith('.pdf'):
+            file_type = 'pdf'
+            raw_text = extract_text_from_pdf(content)
+        elif filename.endswith('.docx'):
+            file_type = 'docx'
+            raw_text = extract_text_from_docx(content)
+        elif filename.endswith('.tex') or filename.endswith('.latex'):
+            file_type = 'latex'
+            raw_text = content.decode('utf-8', errors='replace')
+        elif filename.endswith('.txt'):
+            file_type = 'txt'
+            raw_text = content.decode('utf-8', errors='replace')
+        else:
+            # Try to detect LaTeX or treat as text
+            raw_text = content.decode('utf-8', errors='replace')
+            file_type = 'latex' if is_latex_document(raw_text) else 'txt'
+        
+        if not raw_text.strip():
+            raise HTTPException(status_code=400, detail="Could not extract text from CV")
+        
+        # Calculate total lines
+        lines = raw_text.split('\n')
+        total_lines = len(lines)
+        
+        # Use AI to parse sections
+        parsed_data = await ai_parse_cv_sections(raw_text, file_type)
+        
+        # Build sections with IDs
+        sections = []
+        for idx, section_data in enumerate(parsed_data.get('sections', [])):
+            section = CVSection(
+                id=f"section_{idx}_{uuid.uuid4().hex[:8]}",
+                type=section_data.get('type', 'other'),
+                title=section_data.get('title', f'Section {idx+1}'),
+                content=section_data.get('content', ''),
+                bullets=section_data.get('bullets'),
+                start_line=section_data.get('start_line', 0),
+                end_line=section_data.get('end_line', 0),
+                raw_text=section_data.get('content', '')
+            )
+            sections.append(section)
+        
+        # Create parsed CV object
+        parsed_cv = ParsedCV(
+            cv_id=cv_id,
+            filename=file.filename,
+            file_type=file_type,
+            raw_text=raw_text,
+            sections=sections,
+            contact_info=parsed_data.get('contact_info'),
+            total_lines=total_lines,
+            created_at=datetime.now(timezone.utc).isoformat()
+        )
+        
+        # Store in database
+        await cv_collection.insert_one(parsed_cv.model_dump())
+        
+        return parsed_cv
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CV upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/cv/{cv_id}")
+async def get_cv(cv_id: str):
+    """Get a stored CV by ID"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        cv_data.pop('_id', None)
+        return cv_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get CV error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/edit", response_model=CVEditResponse)
+async def edit_cv_section(request: CVEditRequest):
+    """AI-powered CV editing - can edit word, bullet, paragraph, or entire section"""
+    try:
+        # Get CV
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Determine what to edit
+        text_to_edit = ""
+        if request.section_id:
+            # Find specific section
+            for section in cv_data.get('sections', []):
+                if section['id'] == request.section_id:
+                    text_to_edit = section['content']
+                    break
+            if not text_to_edit:
+                raise HTTPException(status_code=404, detail="Section not found")
+        elif request.line_start is not None and request.line_end is not None:
+            # Extract specific lines
+            lines = cv_data['raw_text'].split('\n')
+            text_to_edit = '\n'.join(lines[request.line_start:request.line_end+1])
+        else:
+            # Edit entire CV
+            text_to_edit = cv_data['raw_text']
+        
+        # Determine if LaTeX
+        is_latex = cv_data.get('file_type') == 'latex' or request.preserve_latex
+        
+        latex_instruction = ""
+        if is_latex:
+            latex_instruction = """
+CRITICAL: This is a LaTeX document. You MUST:
+1. Preserve ALL LaTeX syntax and commands exactly
+2. Keep \\begin{}, \\end{}, \\section{}, etc. intact
+3. Only modify the actual content text, not the LaTeX structure
+4. Ensure the output remains valid, compilable LaTeX
+"""
+        
+        system_prompt = f"""You are an expert CV editor helping improve resumes.
+
+{latex_instruction}
+
+EDITING RULES:
+1. Follow the user's edit instruction precisely
+2. Maintain professional tone and formatting
+3. Be concise and impactful
+4. Use action verbs and quantify achievements when possible
+5. Preserve the overall structure unless asked to change it
+6. Do NOT add fake information or exaggerate
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "edited_text": "The edited version of the text",
+    "explanation": "Brief explanation of changes made",
+    "changes_summary": ["Change 1", "Change 2", "Change 3"]
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"""Original text:
+{text_to_edit}
+
+Edit instruction: {request.edit_instruction}""")
+        
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "edited_text": text_to_edit,
+            "explanation": "Unable to process edit",
+            "changes_summary": []
+        })
+        
+        return CVEditResponse(
+            original_text=text_to_edit,
+            edited_text=data.get('edited_text', text_to_edit),
+            explanation=data.get('explanation', ''),
+            changes_summary=data.get('changes_summary', [])
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CV edit error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/analyze")
+async def analyze_cv_against_job(request: JobTargetRequest):
+    """Analyze CV against target role and company - comprehensive gap analysis"""
+    try:
+        # Get CV
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        system_prompt = """You are a senior technical recruiter, hiring manager, and career mentor combined.
+
+ANALYZE the CV against the target role with BRUTAL HONESTY but SUPPORTIVE TONE.
+
+YOUR ANALYSIS MUST INCLUDE:
+
+1. **MATCH SCORE (0-100%)**: Be realistic, not optimistic
+   - 90-100%: Strong match, interview likely
+   - 70-89%: Good match with some gaps
+   - 50-69%: Partial match, needs work
+   - Below 50%: Significant gaps
+
+2. **MISSING KEYWORDS**: ATS-relevant terms missing from CV
+
+3. **SKILL GAPS**: 
+   - What skills are required but not demonstrated
+   - Priority order (critical vs nice-to-have)
+   - How to acquire each skill (realistic timeframes)
+
+4. **EXPERIENCE GAPS**:
+   - Years of experience mismatch
+   - Role level mismatch (junior applying for senior, etc.)
+   - Domain/industry mismatch
+   - BE HONEST but DO NOT DEMOTIVATE
+
+5. **STRENGTHS**: What makes this candidate stand out
+
+6. **RECOMMENDATIONS**:
+   - What can be TRUTHFULLY added to CV
+   - How to reframe existing experience
+   - Adjacent roles to consider if gaps are significant
+
+7. **HONEST ADDITIONS**: Things the candidate CAN add based on what they likely know
+
+8. **DO NOT FAKE**: Things that should NEVER be fabricated
+
+9. **MENTOR ADVICE**: 1-2 paragraphs of honest, supportive career advice
+
+RESPOND ONLY WITH VALID JSON:
+{
+    "match_score": 65,
+    "missing_keywords": ["kubernetes", "terraform", "CI/CD"],
+    "skill_gaps": [
+        {"skill": "Kubernetes", "priority": "critical", "how_to_learn": "...", "time_needed": "2-4 weeks"}
+    ],
+    "experience_gaps": [
+        {"gap": "2 years short of required experience", "advice": "...", "alternative": "..."}
+    ],
+    "strengths": ["Strong Python background", "..."],
+    "recommendations": [
+        {"type": "reframe", "suggestion": "..."},
+        {"type": "add", "suggestion": "..."}
+    ],
+    "honest_additions": ["Add specific metrics to projects", "..."],
+    "do_not_fake": ["Do not claim Kubernetes experience if you haven't used it", "..."],
+    "mentor_advice": "Supportive paragraph of advice..."
+}"""
+        
+        job_context = f"""
+Target Role: {request.target_role}
+Company: {request.company_name}
+"""
+        if request.job_description:
+            job_context += f"\nJob Description:\n{request.job_description[:5000]}"
+        
+        chat = get_chat_instance(system_prompt, model_type="pro")  # Use pro for deep analysis
+        msg = UserMessage(text=f"""{job_context}
+
+CV Content:
+{cv_data['raw_text'][:10000]}""")
+        
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "match_score": 50,
+            "missing_keywords": [],
+            "skill_gaps": [],
+            "experience_gaps": [],
+            "strengths": [],
+            "recommendations": [],
+            "honest_additions": [],
+            "do_not_fake": [],
+            "mentor_advice": "Unable to analyze CV"
+        })
+        
+        return GapAnalysisResponse(**data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CV analyze error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/company-research", response_model=CompanyResearchResponse)
+async def research_company(company_name: str = Form(...), target_role: str = Form(...)):
+    """Research company for interview preparation"""
+    try:
+        system_prompt = """You are a career research specialist helping candidates prepare for interviews.
+
+Research the company and provide ACTIONABLE insights for interview prep.
+
+RULES:
+1. Use only publicly available information
+2. If something is not available, say "Not Publicly Available"
+3. Be specific and practical
+4. Focus on what helps in interviews
+
+RESPOND ONLY WITH VALID JSON:
+{
+    "company_name": "Company Name",
+    "industry": "Industry",
+    "description": "Brief company description",
+    "culture_insights": ["Insight 1", "Insight 2"],
+    "interview_tips": ["Tip 1", "Tip 2"],
+    "common_questions": ["What question they might ask 1", "..."],
+    "values": ["Company value 1", "..."],
+    "recent_news": ["Recent news if available", "..."],
+    "similar_roles": [
+        {"title": "Similar Role Title", "typical_requirements": "..."}
+    ]
+}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"""Research this company for interview preparation:
+Company: {company_name}
+Target Role: {target_role}
+
+Provide detailed, actionable insights.""")
+        
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "company_name": company_name,
+            "industry": "Not Publicly Available",
+            "description": "Not Publicly Available",
+            "culture_insights": [],
+            "interview_tips": [],
+            "common_questions": [],
+            "values": [],
+            "recent_news": None,
+            "similar_roles": []
+        })
+        
+        return CompanyResearchResponse(**data)
+        
+    except Exception as e:
+        logger.error(f"Company research error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/update-section")
+async def update_cv_section(cv_id: str = Form(...), section_id: str = Form(...), new_content: str = Form(...)):
+    """Update a specific section in the CV"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Update the section
+        sections = cv_data.get('sections', [])
+        updated = False
+        for section in sections:
+            if section['id'] == section_id:
+                section['content'] = new_content
+                section['raw_text'] = new_content
+                updated = True
+                break
+        
+        if not updated:
+            raise HTTPException(status_code=404, detail="Section not found")
+        
+        # Rebuild raw_text from sections
+        # This is a simplified version - in production you'd want smarter reconstruction
+        
+        # Save to database
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": "Section updated"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
