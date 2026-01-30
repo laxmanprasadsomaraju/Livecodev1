@@ -323,7 +323,7 @@ SKILL LEVEL: {skill_level.upper()}
 - Approach: {level_data['approach']}
 """
 
-def get_chat_instance(system_message: str, session_id: str = None, model_type: str = "fast"):
+def get_chat_instance(system_message: str, session_id: str = None, model_type: str = "fast", enable_vision: bool = False):
     """
     Get a chat instance with appropriate Gemini model based on task type.
     
@@ -332,19 +332,24 @@ def get_chat_instance(system_message: str, session_id: str = None, model_type: s
     - "pro": gemini-3-pro-preview (for deep research, complex reasoning)
     - "balanced": gemini-2.5-pro (for balanced performance)
     - "ultra_fast": gemini-2.5-flash-lite (for high-volume, simple tasks)
+    
+    enable_vision: Use vision-capable model for image analysis
     """
     if not session_id:
         session_id = str(uuid.uuid4())
     
     # Model selection based on task type
-    model_map = {
-        "fast": "gemini-3-flash-preview",
-        "pro": "gemini-3-pro-preview", 
-        "balanced": "gemini-2.5-pro",
-        "ultra_fast": "gemini-2.5-flash-lite"
-    }
-    
-    selected_model = model_map.get(model_type, "gemini-3-flash-preview")
+    # For vision tasks, always use a vision-capable model
+    if enable_vision:
+        selected_model = "gemini-3-flash-preview"  # This supports vision
+    else:
+        model_map = {
+            "fast": "gemini-3-flash-preview",
+            "pro": "gemini-3-pro-preview", 
+            "balanced": "gemini-2.5-pro",
+            "ultra_fast": "gemini-2.5-flash-lite"
+        }
+        selected_model = model_map.get(model_type, "gemini-3-flash-preview")
     
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
