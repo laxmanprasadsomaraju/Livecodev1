@@ -3589,16 +3589,17 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
-    """Fetch and summarize article using real web scraping + Gemini with EMERGENT_LLM_KEY"""
+    """Fetch and summarize article using real web scraping + Gemini"""
     try:
         from bs4 import BeautifulSoup
+        import re
         
         url = request.get("url")
         if not url or url == "#":
             raise HTTPException(status_code=400, detail="Invalid URL")
         
         # Step 1: Fetch actual article content
-        logger.info(f"Fetching article: {url}")
+        logger.info(f"Scraping article: {url}")
         try:
             response = requests.get(url, timeout=10, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
