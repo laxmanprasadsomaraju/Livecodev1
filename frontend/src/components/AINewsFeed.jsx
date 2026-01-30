@@ -23,7 +23,7 @@ const AINewsFeed = () => {
   const [news, setNews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [category, setCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // For display only
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [articleSummary, setArticleSummary] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
