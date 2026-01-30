@@ -6010,6 +6010,11 @@ async def upload_cv(file: UploadFile = File(...)):
             )
             sections.append(section)
         
+        # Clean contact_info - remove None values and ensure all values are strings
+        contact_info = parsed_data.get('contact_info', {})
+        if contact_info:
+            contact_info = {k: str(v) for k, v in contact_info.items() if v is not None}
+        
         # Create parsed CV object
         parsed_cv = ParsedCV(
             cv_id=cv_id,
@@ -6017,7 +6022,7 @@ async def upload_cv(file: UploadFile = File(...)):
             file_type=file_type,
             raw_text=raw_text,
             sections=sections,
-            contact_info=parsed_data.get('contact_info'),
+            contact_info=contact_info if contact_info else None,
             total_lines=total_lines,
             created_at=datetime.now(timezone.utc).isoformat()
         )
