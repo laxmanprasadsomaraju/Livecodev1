@@ -2711,8 +2711,11 @@ Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images
         }
         
     except Exception as e:
-        logger.error(f"Learning mentor error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Learning mentor error: {e}", exc_info=True)
+        return {
+            "response": f"I apologize, but I encountered an error processing your request. Error: {str(e)}\n\nPlease try again or ask your question differently.",
+            "quiz": None
+        }
 
 @api_router.post("/learning/complete-topic")
 async def complete_topic(request: TopicCompleteRequest):
