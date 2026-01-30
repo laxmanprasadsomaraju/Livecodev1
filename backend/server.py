@@ -2697,7 +2697,13 @@ Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images
         else:
             user_msg = UserMessage(text=f"{context}\nUser: {request.message}")
         
+        # Log for debugging
+        if request.image_base64:
+            logger.info(f"Processing image for topic: {topic.get('name', 'unknown')} - Image size: {len(request.image_base64)} bytes")
+        
         response = await chat.send_message(user_msg)
+        
+        logger.info(f"Mentor response generated - Has image: {bool(request.image_base64)}")
         
         return {
             "response": response or "I'm here to help you learn! What would you like to know?",
