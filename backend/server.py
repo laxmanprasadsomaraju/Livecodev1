@@ -3512,32 +3512,32 @@ async def search_live_news(category: str = "ai", query: Optional[str] = None):
         # Use Gemini to research with web search
         system_prompt = f"""You are a tech news researcher with real-time web search access.
 
-CRITICAL TASK: Find REAL, RECENT news articles published in January 2026.
+CRITICAL TASK: Find REAL, RECENT news articles from trusted tech news sources.
 
 REQUIREMENTS:
-1. Use web search to find ACTUAL articles
+1. Use web search RIGHT NOW to find ACTUAL current articles
 2. Get REAL URLs from TechCrunch, The Verge, Wired, Ars Technica, Reuters, Bloomberg
-3. Extract actual article titles
-4. Get real summaries
-5. Verify publication dates
+3. Extract actual article titles from the web pages
+4. Get real summaries from the articles
+5. Verify these are recent articles (last 30 days)
 
 RESPONSE FORMAT (VALID JSON ONLY):
 {{
     "articles": [
         {{
-            "id": "unique_id",
+            "id": "unique_id",  
             "title": "REAL Article Title from Website",
             "summary": "Actual 2-3 sentence summary from the article",
             "source": "Source name (TechCrunch, The Verge, etc)",
             "url": "REAL working URL - https://...",
             "category": "{category}",
-            "publishedAt": "2026-01-29T10:00:00Z",
+            "publishedAt": "Recent date in ISO format",
             "verified": true
         }}
     ]
 }}
 
-Find 8-10 recent articles. Use web search. Return ONLY valid JSON."""
+Search the web NOW. Find 8-10 real recent articles. Return ONLY valid JSON."""
         
         # Use Gemini with EMERGENT_LLM_KEY
         chat = get_chat_instance(system_prompt, model_type="pro")
