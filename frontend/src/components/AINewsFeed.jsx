@@ -16,21 +16,20 @@ const NEWS_CATEGORIES = [
   { id: "ai", name: "AI & ML", icon: Brain, color: "#EA4335" },
   { id: "tech", name: "Technology", icon: Cpu, color: "#34A853" },
   { id: "coding", name: "Programming", icon: Code, color: "#FBBC04" },
+  { id: "products", name: "Products", icon: Sparkles, color: "#f59e0b" },
   { id: "startups", name: "Startups", icon: TrendingUp, color: "#9333ea" },
 ];
 
 const AINewsFeed = () => {
   const [news, setNews] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Changed to false - don't load on mount
   const [category, setCategory] = useState("all");
   const [searchInput, setSearchInput] = useState(""); // For display only
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [articleSummary, setArticleSummary] = useState(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
-  useEffect(() => {
-    fetchNews();
-  }, [category]);
+  // REMOVED automatic fetch - only on Refresh button click now!
 
   const fetchNews = async (customQuery = null) => {
     setIsLoading(true);
