@@ -1454,10 +1454,17 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
         print(f"📍 Base URL: {self.base_url}")
         print("=" * 60)
 
-        # Test all endpoints - prioritizing NEW MOLTBOT INTEGRATION features
+        # Test all endpoints - prioritizing CV INTELLIGENCE & INTERVIEW MENTOR features
         tests = [
             self.test_health,
-            # NEW MOLTBOT INTEGRATION - HIGHEST PRIORITY
+            # CV INTELLIGENCE & INTERVIEW MENTOR - HIGHEST PRIORITY (Phase 1 MVP)
+            self.test_cv_upload,
+            self.test_cv_get,
+            self.test_cv_edit,
+            self.test_cv_analyze,
+            self.test_cv_company_research,
+            self.test_cv_update_section,
+            # NEW MOLTBOT INTEGRATION - HIGH PRIORITY
             self.test_video_transcript,
             self.test_video_contextual_help,
             self.test_video_proactive_analysis,
