@@ -3492,92 +3492,72 @@ Respond with JSON."""
 # Real-time News Search
 @api_router.get("/news/search-live")
 async def search_live_news(category: str = "ai", query: Optional[str] = None):
-    """Search for news using Gemini research with EMERGENT_LLM_KEY"""
+    """Simple Gemini web search for news"""
     try:
-        # Create focused research query
-        if category == "ai" or category == "all":
-            research_query = "Find me 10 latest and most recent AI and technology news articles. Include OpenAI, Google Gemini, Anthropic Claude, machine learning breakthroughs. Give me REAL article titles, summaries, and URLs from TechCrunch, The Verge, Wired."
-        elif category == "tech":
-            research_query = "Find me 10 latest and most recent technology news articles. Include hardware, software, tech companies. Give me REAL article titles, summaries, and URLs."
-        elif category == "coding":
-            research_query = "Find me 10 latest and most recent programming and developer news. Include new frameworks, languages, tools. Give me REAL article titles, summaries, and URLs."
-        elif category == "startups":
-            research_query = "Find me 10 latest and most recent startup and venture capital news. Include funding rounds, new startups, acquisitions. Give me REAL article titles, summaries, and URLs."
-        else:
-            research_query = f"Find me 10 latest and most recent {category} news articles"
-        
+        # Simple search query
         if query:
-            research_query = query
+            search_text = query
+        elif category == "ai":
+            search_text = "latest AI artificial intelligence news OpenAI ChatGPT Gemini Claude"
+        elif category == "tech":
+            search_text = "latest technology news tech companies innovation"
+        elif category == "coding":
+            search_text = "latest programming coding developer news"
+        elif category == "startups":
+            search_text = "latest startup funding venture capital news"
+        else:
+            search_text = f"latest {category} news"
         
-        # Use Gemini to research with web search
-        system_prompt = f"""You are a tech news researcher with real-time web search access.
+        # Dead simple prompt
+        system_prompt = """You are a news finder. Search the web RIGHT NOW for news articles.
 
-CRITICAL TASK: Find REAL, RECENT news articles from trusted tech news sources.
-
-REQUIREMENTS:
-1. Use web search RIGHT NOW to find ACTUAL current articles
-2. Get REAL URLs from TechCrunch, The Verge, Wired, Ars Technica, Reuters, Bloomberg
-3. Extract actual article titles from the web pages
-4. Get real summaries from the articles
-5. Verify these are recent articles (last 30 days)
-
-RESPONSE FORMAT (VALID JSON ONLY):
-{{
+Return ONLY this JSON format:
+{
     "articles": [
-        {{
-            "id": "unique_id",  
-            "title": "REAL Article Title from Website",
-            "summary": "Actual 2-3 sentence summary from the article",
-            "source": "Source name (TechCrunch, The Verge, etc)",
-            "url": "REAL working URL - https://...",
-            "category": "{category}",
-            "publishedAt": "Recent date in ISO format",
-            "verified": true
-        }}
+        {
+            "title": "Article title",
+            "summary": "Brief summary",
+            "url": "https://real-url.com/article",
+            "source": "Website name"
+        }
     ]
-}}
+}
 
-Search the web NOW. Find 8-10 real recent articles. Return ONLY valid JSON."""
+Find 10 REAL articles with REAL URLs. Search the web now."""
         
         # Use Gemini with EMERGENT_LLM_KEY
         chat = get_chat_instance(system_prompt, model_type="pro")
-        user_msg = UserMessage(text=research_query)
+        user_msg = UserMessage(text=f"Search web for: {search_text}\n\nGive me 10 real news articles with working URLs.")
         response = await chat.send_message(user_msg)
         
-        logger.info(f"Got response from Gemini for news research")
-        
-        # Parse JSON response
+        # Parse response
         data = safe_parse_json(response, {"articles": []})
         articles = data.get("articles", [])
         
-        # Validate articles
-        valid_articles = []
+        # Add required fields
         for article in articles:
-            if article.get("url") and article["url"] not in ["#", "", "N/A", "null"]:
-                if article.get("title") and len(article["title"]) > 15:
-                    # Add defaults
-                    article["id"] = article.get("id", str(uuid.uuid4()))
-                    article["category"] = category
-                    article["verified"] = True
-                    if not article.get("publishedAt"):
-                        article["publishedAt"] = datetime.now(timezone.utc).isoformat()
-                    valid_articles.append(article)
+            if not article.get("id"):
+                article["id"] = str(uuid.uuid4())
+            if not article.get("category"):
+                article["category"] = category
+            if not article.get("publishedAt"):
+                article["publishedAt"] = datetime.now(timezone.utc).isoformat()
+            article["verified"] = True
         
-        logger.info(f"Found {len(valid_articles)} valid articles for {category}")
+        # Filter valid URLs
+        valid_articles = [a for a in articles if a.get("url") and "http" in a["url"] and a["url"] != "#"]
+        
+        logger.info(f"Found {len(valid_articles)} articles")
         
         return {
             "articles": valid_articles,
-            "query": research_query,
-            "source": "gemini_research"
+            "query": search_text,
+            "source": "gemini_search"
         }
         
     except Exception as e:
-        logger.error(f"News search error: {e}", exc_info=True)
-        return {
-            "articles": [],
-            "query": category,
-            "error": str(e)
-        }
+        logger.error(f"News error: {e}", exc_info=True)
+        return {"articles": [], "query": search_text, "error": str(e)}
 
 @api_router.post("/news/summarize-article")
 async def summarize_news_article(request: dict):
