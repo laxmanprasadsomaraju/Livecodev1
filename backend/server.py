@@ -2677,8 +2677,9 @@ Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images
         
         # Handle image if provided
         if request.image_base64:
+            prompt_text = f"{context}\nUser: {request.message}\n\n**[📸 IMAGE PROVIDED]**\nThe user has uploaded an image/screenshot. Please analyze the image carefully and explain what you see in relation to {topic.get('name', 'the topic')}. Be specific about elements visible in the image."
             user_msg = UserMessage(
-                text=f"{context}\nUser: {request.message}\n\n[User has shared an image for analysis]",
+                text=prompt_text,
                 images=[ImageContent(base64=request.image_base64)]
             )
         else:
