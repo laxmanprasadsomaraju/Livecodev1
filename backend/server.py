@@ -2681,19 +2681,45 @@ Be encouraging, specific, and educational. ALWAYS acknowledge and analyze images
         for msg in request.conversation_history[-10:]:
             context += f"{msg.role}: {msg.content}\n"
         
-        # Handle image if provided
+        # Handle image if provided - Use proper Gemini vision format
         if request.image_base64:
-            prompt_text = f"{context}\nUser: {request.message}\n\n**[📸 IMAGE PROVIDED - ANALYZE IT NOW]**\nThe user has uploaded an image/screenshot about {topic.get('name', 'the topic')}.\n\nYOU MUST:\n1. Look at the image carefully\n2. Describe what you see specifically\n3. Explain each element in detail\n4. Connect it to the learning topic\n\nStart your response with: '## 📸 Image Analysis' and describe what you see."
+            prompt_text = f"""**[📸 ANALYZING SCREENSHOT]**
+
+TOPIC: {topic.get('name', 'the topic')}
+USER QUESTION: {request.message if request.message else "Please analyze this image"}
+
+The user has uploaded an image/screenshot. 
+
+YOUR TASK:
+1. **DESCRIBE WHAT YOU SEE** - Be extremely specific about visible elements
+2. **IDENTIFY ALL TEXT** - Read any text, code, labels, or captions
+3. **EXPLAIN THE CONTENT** - What concepts, diagrams, or code is shown?
+4. **RELATE TO TOPIC** - How does this image relate to {topic.get('name', 'the learning topic')}?
+5. **TEACH** - Explain what the image demonstrates step-by-step
+
+FORMAT YOUR RESPONSE:
+## 📸 What I See In Your Screenshot
+[Detailed description of visible elements]
+
+## 🎯 Analysis & Explanation  
+[Break down what's shown and explain it]
+
+## 💡 Key Learning Points
+[What you can learn from this]
+
+{context}"""
             
             try:
+                # For Gemini vision, pass image in content array format
                 user_msg = UserMessage(
                     text=prompt_text,
                     images=[ImageContent(base64=request.image_base64)]
                 )
+                logger.info(f"Sending image to vision model - Size: {len(request.image_base64)} chars")
             except Exception as img_error:
-                logger.error(f"Image content error: {img_error}")
-                # Fallback: try with just text
-                user_msg = UserMessage(text=f"{prompt_text}\n\n[Note: There was an issue loading the image, but I'll help with your question: {request.message}]")
+                logger.error(f"Image content creation error: {img_error}", exc_info=True)
+                # Fallback without image
+                user_msg = UserMessage(text=f"{prompt_text}\n\n[ERROR: Could not load image. Error: {str(img_error)}]")
         else:
             user_msg = UserMessage(text=f"{context}\nUser: {request.message}")
         
