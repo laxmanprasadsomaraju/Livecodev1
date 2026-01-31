@@ -605,6 +605,11 @@ const CVIntelligenceView = () => {
     setInterviewSession(null);
     setCurrentQuestionIndex(0);
     setCurrentEvaluation(null);
+    setCurrentInterviewStage(stage); // Store current stage for refresh
+    
+    // Check if it's a custom role
+    const customRole = customRoles.find(r => r.id === stage);
+    const stageName = customRole ? customRole.name : stage;
     
     try {
       const response = await fetch(`${BACKEND_URL}/api/cv/interview/generate`, {
@@ -614,7 +619,9 @@ const CVIntelligenceView = () => {
           cv_id: cvData.cv_id,
           target_role: targetRole,
           company_name: companyName,
-          stage: stage,
+          stage: customRole ? "custom" : stage,
+          custom_role_name: customRole ? customRole.name : null,
+          job_description: jobDescription || "",
           num_questions: 5
         })
       });
