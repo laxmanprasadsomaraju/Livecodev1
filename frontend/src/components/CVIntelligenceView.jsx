@@ -99,6 +99,17 @@ const CVIntelligenceView = () => {
   const [aiImprovedCV, setAiImprovedCV] = useState(null);
   const [isGeneratingAIView, setIsGeneratingAIView] = useState(false);
   
+  // LaTeX comparison state
+  const [latexCode, setLatexCode] = useState("");
+  const [latexChanges, setLatexChanges] = useState([]);
+  const [compiledView, setCompiledView] = useState("");
+  const [changesSummary, setChangesSummary] = useState("");
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [selectedChange, setSelectedChange] = useState(null);
+  const [changeChatOpen, setChangeChatOpen] = useState(false);
+  const [changeChatMessages, setChangeChatMessages] = useState([]);
+  const [changeChatInput, setChangeChatInput] = useState("");
+  
   // Interview state
   const [interviewSession, setInterviewSession] = useState(null);
   const [customRoles, setCustomRoles] = useState([]);
