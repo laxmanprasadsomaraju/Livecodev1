@@ -273,6 +273,117 @@ const CVIntelligenceView = () => {
     }
   };
 
+  // Section management functions
+  const deleteSection = async (sectionId) => {
+    if (!window.confirm("Are you sure you want to delete this section?")) return;
+    try {
+      const formData = new FormData();
+      formData.append('cv_id', cvData.cv_id);
+      formData.append('section_id', sectionId);
+      const response = await fetch(`${BACKEND_URL}/api/cv/delete-section`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Delete failed');
+      setCvData(prev => ({
+        ...prev,
+        sections: prev.sections.filter(s => s.id !== sectionId)
+      }));
+      toast.success("Section deleted");
+    } catch (error) {
+      toast.error("Failed to delete section");
+    }
+  };
+
+  const addTextToSection = async () => {
+    if (!additionalText.trim() || !showAddTextModal) return;
+    try {
+      const formData = new FormData();
+      formData.append('cv_id', cvData.cv_id);
+      formData.append('section_id', showAddTextModal.id);
+      formData.append('additional_text', additionalText);
+      formData.append('position', addTextPosition);
+      const response = await fetch(`${BACKEND_URL}/api/cv/add-text-to-section`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Add text failed');
+      
+      setCvData(prev => ({
+        ...prev,
+        sections: prev.sections.map(s => {
+          if (s.id === showAddTextModal.id) {
+            const newContent = addTextPosition === "start" 
+              ? additionalText + "\n\n" + s.content 
+              : s.content + "\n\n" + additionalText;
+            return { ...s, content: newContent, raw_text: newContent };
+          }
+          return s;
+        })
+      }));
+      setShowAddTextModal(null);
+      setAdditionalText("");
+      toast.success("Text added to section");
+    } catch (error) {
+      toast.error("Failed to add text");
+    }
+  };
+
+  const mergeSections = async () => {
+    if (!showMergeModal || !mergeTargetId) return;
+    try {
+      const formData = new FormData();
+      formData.append('cv_id', cvData.cv_id);
+      formData.append('source_section_id', showMergeModal.id);
+      formData.append('target_section_id', mergeTargetId);
+      const response = await fetch(`${BACKEND_URL}/api/cv/merge-sections`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Merge failed');
+      
+      // Update local state
+      const sourceSection = cvData.sections.find(s => s.id === showMergeModal.id);
+      setCvData(prev => ({
+        ...prev,
+        sections: prev.sections
+          .filter(s => s.id !== showMergeModal.id)
+          .map(s => {
+            if (s.id === mergeTargetId) {
+              return {
+                ...s,
+                content: s.content + "\n\n" + sourceSection.content,
+                raw_text: s.content + "\n\n" + sourceSection.content
+              };
+            }
+            return s;
+          })
+      }));
+      setShowMergeModal(null);
+      setMergeTargetId("");
+      toast.success("Sections merged");
+    } catch (error) {
+      toast.error("Failed to merge sections");
+    }
+  };
+
+  const addNewSection = async () => {
+    if (!newSectionTitle.trim()) { toast.error("Please enter section title"); return; }
+    try {
+      const formData = new FormData();
+      formData.append('cv_id', cvData.cv_id);
+      formData.append('section_type', newSectionType);
+      formData.append('section_title', newSectionTitle);
+      formData.append('content', newSectionContent);
+      const response = await fetch(`${BACKEND_URL}/api/cv/add-section`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Add section failed');
+      const data = await response.json();
+      
+      setCvData(prev => ({
+        ...prev,
+        sections: [...prev.sections, data.section]
+      }));
+      setShowAddSectionModal(false);
+      setNewSectionTitle("");
+      setNewSectionContent("");
+      setNewSectionType("other");
+      toast.success("Section added");
+    } catch (error) {
+      toast.error("Failed to add section");
+    }
+  };
+
   // Analysis handler
   const runAnalysis = async () => {
     if (!targetRole.trim() || !companyName.trim()) {
