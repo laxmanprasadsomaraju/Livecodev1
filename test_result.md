@@ -677,12 +677,8 @@ agent_communication:
 
 test_plan:
   current_focus:
-    - "CV Interview Question Generation API"
-    - "CV Interview Session Retrieval API"
-    - "CV Interview Answer Evaluation API"
-    - "CV Interview Model Answer API"
-    - "CV Interview Session Summary API"
-    - "CV Learning Roadmap Generation API"
+    - "Remotion Code Generation API"
+    - "Remotion Code Refinement API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
