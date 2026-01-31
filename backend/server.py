@@ -6095,6 +6095,33 @@ async def upload_cv(file: UploadFile = File(...)):
         
     except HTTPException:
         raise
+
+@api_router.post("/cv/ai-improve")
+async def ai_improve_cv(request: dict):
+    """Generate AI-improved version of CV"""
+    try:
+        raw_text = request.get('raw_text', '')
+        
+        system_prompt = """You are a professional CV writer. Improve this CV by:
+1. Making it more professional and impactful
+2. Using action verbs and metrics
+3. Improving formatting and clarity
+4. Highlighting achievements
+5. Making it ATS-friendly
+
+Preserve the structure but enhance the content. Return the improved CV text."""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"Improve this CV:\n\n{raw_text[:20000]}")
+        response = await chat.send_message(msg)
+        
+        return {"improved_text": response}
+        
+    except Exception as e:
+        logger.error(f"AI improve CV error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
     except Exception as e:
         logger.error(f"CV upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
