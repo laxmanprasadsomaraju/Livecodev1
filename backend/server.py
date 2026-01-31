@@ -6240,9 +6240,9 @@ def get_remotion_chat_instance(system_message: str, custom_key: str = None, prov
     api_key = custom_key if custom_key else EMERGENT_LLM_KEY
     session_id = str(uuid.uuid4())
     
-    # Model selection based on provider
+    # Model selection based on provider - using working models
     model_map = {
-        "gemini": ("gemini", "gemini-2.0-flash-exp"),
+        "gemini": ("gemini", "gemini-3-flash-preview"),
         "openai": ("openai", "gpt-4o"),
         "anthropic": ("anthropic", "claude-sonnet-4-20250514")
     }
