@@ -1088,6 +1088,14 @@ const CVIntelligenceView = () => {
             <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
               <div className="space-y-2">
+                <Button onClick={() => setIsAddingSection(true)} className="w-full bg-gradient-to-r from-green-500 to-emerald-500">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Add New Section
+                </Button>
+                <Button onClick={loadAISuggestions} disabled={isLoadingSuggestions} variant="outline" className="w-full border-white/20 hover:bg-white/10">
+                  {isLoadingSuggestions ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Lightbulb className="w-4 h-4 mr-2" />}
+                  AI Suggestions
+                </Button>
                 <Button onClick={() => setActiveTab("analyze")} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
                   <Target className="w-4 h-4 mr-2" />
                   Analyze for Job
@@ -1097,6 +1105,154 @@ const CVIntelligenceView = () => {
                   Upload New CV
                 </Button>
               </div>
+            </div>
+            
+            {/* AI Suggestions Panel */}
+            {aiSuggestions && (
+              <div className="glass-light rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-yellow-400" />
+                  AI Suggestions
+                </h3>
+                {aiSuggestions.suggested_sections?.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-white/60 text-sm mb-2">Recommended sections:</p>
+                    {aiSuggestions.suggested_sections.map((suggestion, idx) => (
+                      <div key={idx} className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-white font-medium text-sm">{suggestion.title}</h4>
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            suggestion.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                            suggestion.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                            'bg-blue-500/20 text-blue-300'
+                          }`}>{suggestion.priority}</span>
+                        </div>
+                        <p className="text-white/50 text-xs">{suggestion.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Section Modal */}
+      {isAddingSection && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="glass-light rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Add New Section</h3>
+              <button onClick={() => setIsAddingSection(false)} className="text-white/40 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Section Type</label>
+                <select
+                  value={newSectionType}
+                  onChange={(e) => setNewSectionType(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                >
+                  <option value="experience">Work Experience</option>
+                  <option value="education">Education</option>
+                  <option value="skills">Skills</option>
+                  <option value="projects">Projects</option>
+                  <option value="summary">Summary</option>
+                  <option value="certifications">Certifications</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Section Title</label>
+                <input
+                  type="text"
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  placeholder="e.g., Projects"
+                  className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="text-white/60 text-sm mb-2 block">Content</label>
+                <Textarea
+                  value={newSectionContent}
+                  onChange={(e) => setNewSectionContent(e.target.value)}
+                  placeholder="Add your section content here..."
+                  className="min-h-[200px] bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <Button onClick={addSection} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Add Section
+                </Button>
+                <Button onClick={() => setIsAddingSection(false)} variant="outline" className="border-white/20">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Edit Modal */}
+      {chatSection && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="glass-light rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <MessageSquare className="w-6 h-6 text-blue-400" />
+                Chat Edit: {chatSection.title}
+              </h3>
+              <button onClick={() => {setChatSection(null); setChatMessages([]);}} className="text-white/40 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+              {/* Show current content */}
+              <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <p className="text-white/40 text-xs mb-2">Current Content:</p>
+                <p className="text-white/80 text-sm whitespace-pre-wrap">{chatSection.content}</p>
+              </div>
+              
+              {/* Chat messages */}
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} className={`p-4 rounded-lg ${
+                  msg.role === 'user' ? 'bg-indigo-500/20 ml-8' : 'bg-white/5 mr-8'
+                }`}>
+                  <p className="text-white/60 text-xs mb-1">{msg.role === 'user' ? 'You' : 'AI Assistant'}</p>
+                  <p className="text-white text-sm">{msg.content}</p>
+                </div>
+              ))}
+              
+              {isChatting && (
+                <div className="p-4 rounded-lg bg-white/5 mr-8">
+                  <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+                placeholder="Ask AI to edit this section..."
+                className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                disabled={isChatting}
+              />
+              <Button onClick={sendChatMessage} disabled={isChatting || !chatInput.trim()} className="bg-gradient-to-r from-indigo-500 to-purple-500">
+                <Send className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>
