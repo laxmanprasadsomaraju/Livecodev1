@@ -6066,6 +6066,26 @@ async def upload_cv(file: UploadFile = File(...)):
         logger.error(f"CV upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/cv/common-roles")
+async def get_common_roles():
+    """Get a list of common tech roles for interview prep"""
+    return {
+        "roles": [
+            {"id": "swe", "title": "Software Engineer", "variants": ["Junior SWE", "Senior SWE", "Staff Engineer", "Principal Engineer"]},
+            {"id": "frontend", "title": "Frontend Engineer", "variants": ["React Developer", "Vue Developer", "Angular Developer"]},
+            {"id": "backend", "title": "Backend Engineer", "variants": ["Python Developer", "Java Developer", "Node.js Developer"]},
+            {"id": "fullstack", "title": "Full Stack Engineer", "variants": ["MERN Stack", "MEAN Stack", "Django + React"]},
+            {"id": "devops", "title": "DevOps Engineer", "variants": ["SRE", "Platform Engineer", "Cloud Engineer"]},
+            {"id": "data", "title": "Data Engineer", "variants": ["ETL Developer", "Data Platform Engineer"]},
+            {"id": "ml", "title": "ML Engineer", "variants": ["AI Engineer", "Deep Learning Engineer", "NLP Engineer"]},
+            {"id": "ds", "title": "Data Scientist", "variants": ["Research Scientist", "Applied Scientist"]},
+            {"id": "pm", "title": "Product Manager", "variants": ["Technical PM", "Growth PM", "Platform PM"]},
+            {"id": "em", "title": "Engineering Manager", "variants": ["Tech Lead", "Team Lead", "Director of Engineering"]},
+            {"id": "support", "title": "Technical Support Engineer", "variants": ["Solutions Engineer", "Customer Success Engineer"]},
+            {"id": "qa", "title": "QA Engineer", "variants": ["SDET", "Test Automation Engineer", "Quality Engineer"]}
+        ]
+    }
+
 @api_router.get("/cv/{cv_id}")
 async def get_cv(cv_id: str):
     """Get a stored CV by ID"""
