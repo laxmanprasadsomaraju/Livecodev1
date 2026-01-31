@@ -89,6 +89,17 @@ const CVIntelligenceView = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editResult, setEditResult] = useState(null);
   
+  // Section management state
+  const [showAddTextModal, setShowAddTextModal] = useState(null);
+  const [additionalText, setAdditionalText] = useState("");
+  const [addTextPosition, setAddTextPosition] = useState("end");
+  const [showMergeModal, setShowMergeModal] = useState(null);
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [newSectionType, setNewSectionType] = useState("other");
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [newSectionContent, setNewSectionContent] = useState("");
+  
   // Interview state
   const [interviewSession, setInterviewSession] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
