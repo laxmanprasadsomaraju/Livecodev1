@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class CVIntelligenceTester:
-    def __init__(self, base_url="https://resumeflow-18.preview.emergentagent.com"):
+    def __init__(self, base_url="https://video-code-ai.preview.emergentagent.com"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0
