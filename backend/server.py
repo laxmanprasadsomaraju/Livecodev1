@@ -6368,7 +6368,7 @@ RESPOND WITH JSON:
     "code_outline": "Pseudocode outline"
 }"""
         
-        chat2 = get_chat_instance(architect_prompt, model_type="fast")
+        chat2 = get_remotion_chat_instance(architect_prompt, api_key, provider)
         msg2 = UserMessage(text=f"Requirements: {json.dumps(reqs_data)}")
         architecture = await chat2.send_message(msg2)
         arch_data = safe_parse_json(architecture, {})
