@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Video, Send, Code, Sparkles, Wand2, RefreshCw, Copy, Check, 
   ChevronDown, ChevronUp, Loader2, Play, FileCode, MessageSquare,
-  Zap, Brain, Eye, Terminal, Film, Settings, Palette
+  Zap, Brain, Eye, Terminal, Film, Settings, Palette, Key, Sliders
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -21,6 +21,13 @@ const RemotionStudioView = () => {
   const [explanation, setExplanation] = useState("");
   const [isRefining, setIsRefining] = useState(false);
   const [refinePrompt, setRefinePrompt] = useState("");
+  
+  // New states for settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [useCustomKey, setUseCustomKey] = useState(false);
+  const [modelProvider, setModelProvider] = useState("gemini");
+  const [isEnhancing, setIsEnhancing] = useState(false);
   
   const chatContainerRef = useRef(null);
   const codeEditorRef = useRef(null);
@@ -60,6 +67,56 @@ const RemotionStudioView = () => {
     }
   ];
 
+  // Model providers
+  const providers = [
+    { id: "gemini", name: "Google Gemini", icon: "✨", color: "from-blue-500 to-cyan-500" },
+    { id: "openai", name: "OpenAI GPT-4o", icon: "🤖", color: "from-emerald-500 to-green-500" },
+    { id: "anthropic", name: "Anthropic Claude", icon: "🧠", color: "from-orange-500 to-red-500" }
+  ];
+
+  // Enhance prompt
+  const handleEnhancePrompt = async () => {
+    if (!prompt.trim() || isEnhancing) return;
+
+    setIsEnhancing(true);
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/remotion/enhance-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt,
+          custom_api_key: useCustomKey && customApiKey ? customApiKey : null
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to enhance prompt");
+
+      const data = await response.json();
+      
+      if (data.enhanced_prompt) {
+        setPrompt(data.enhanced_prompt);
+        
+        // Add enhancement info to chat
+        const enhanceMessage = { 
+          role: "system", 
+          content: `✨ **Prompt Enhanced!**\n\nComplexity: ${data.complexity}\nEstimated Duration: ${data.estimated_duration}s\n\n**Suggestions:**\n${data.suggestions?.map(s => `• ${s}`).join('\n') || 'None'}`
+        };
+        setConversationHistory(prev => [...prev, enhanceMessage]);
+      }
+      
+    } catch (error) {
+      console.error("Enhance error:", error);
+      const errorMessage = { 
+        role: "system", 
+        content: `❌ Enhancement failed: ${error.message}` 
+      };
+      setConversationHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   // Generate Remotion code
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
@@ -90,7 +147,9 @@ const RemotionStudioView = () => {
           conversation_history: conversationHistory.map(msg => ({
             role: msg.role,
             content: msg.content
-          }))
+          })),
+          custom_api_key: useCustomKey && customApiKey ? customApiKey : null,
+          model_provider: modelProvider
         })
       });
 
@@ -112,7 +171,7 @@ const RemotionStudioView = () => {
       // Add assistant response
       const assistantMessage = { 
         role: "assistant", 
-        content: `Generated Remotion video code! ${data.explanation || ""}`,
+        content: `✅ Generated Remotion video code! ${data.explanation || ""}`,
         code: data.code,
         config: data.video_config
       };
@@ -122,7 +181,7 @@ const RemotionStudioView = () => {
       console.error("Generation error:", error);
       const errorMessage = { 
         role: "assistant", 
-        content: `Error generating code: ${error.message}. Please try again.` 
+        content: `❌ Error generating code: ${error.message}. Please try again.` 
       };
       setConversationHistory(prev => [...prev, errorMessage]);
       clearInterval(agentInterval);
@@ -139,7 +198,7 @@ const RemotionStudioView = () => {
     setIsRefining(true);
 
     // Add refinement request to conversation
-    const userMessage = { role: "user", content: `Refine: ${refinePrompt}` };
+    const userMessage = { role: "user", content: `🔧 Refine: ${refinePrompt}` };
     setConversationHistory(prev => [...prev, userMessage]);
 
     try {
@@ -148,7 +207,9 @@ const RemotionStudioView = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           current_code: generatedCode,
-          user_feedback: refinePrompt
+          user_feedback: refinePrompt,
+          custom_api_key: useCustomKey && customApiKey ? customApiKey : null,
+          model_provider: modelProvider
         })
       });
 
@@ -165,7 +226,7 @@ const RemotionStudioView = () => {
       // Add assistant response
       const assistantMessage = { 
         role: "assistant", 
-        content: `Code refined! Changes: ${data.changes_made || "Updated based on your feedback"}`,
+        content: `✅ Code refined! Changes: ${data.changes_made || "Updated based on your feedback"}`,
         code: data.refined_code
       };
       setConversationHistory(prev => [...prev, assistantMessage]);
@@ -174,7 +235,7 @@ const RemotionStudioView = () => {
       console.error("Refinement error:", error);
       const errorMessage = { 
         role: "assistant", 
-        content: `Error refining code: ${error.message}` 
+        content: `❌ Error refining code: ${error.message}` 
       };
       setConversationHistory(prev => [...prev, errorMessage]);
     } finally {
@@ -245,12 +306,95 @@ const RemotionStudioView = () => {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {/* Settings Toggle */}
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`px-3 py-1.5 rounded-full glass-light text-xs font-medium flex items-center gap-2 transition-all ${showSettings ? 'bg-purple-500/20 border border-purple-500/30' : ''}`}
+          >
+            <Sliders className="w-3 h-3" />
+            Settings
+          </button>
           <div className="px-3 py-1.5 rounded-full glass-light text-xs font-medium flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             4 AI Agents Ready
           </div>
         </div>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="glass-panel rounded-xl border border-white/10 p-4 mb-6 animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Settings className="w-4 h-4 text-purple-400" />
+            <span className="font-semibold">Model & API Settings</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Model Provider Selection */}
+            <div>
+              <label className="text-xs text-white/50 mb-2 block">Select AI Model Provider</label>
+              <div className="flex flex-wrap gap-2">
+                {providers.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setModelProvider(p.id)}
+                    className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${
+                      modelProvider === p.id 
+                        ? `bg-gradient-to-r ${p.color} text-white font-medium shadow-lg` 
+                        : 'glass-light hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{p.icon}</span>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* API Key Configuration */}
+            <div>
+              <label className="text-xs text-white/50 mb-2 block">API Key Configuration</label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!useCustomKey}
+                      onChange={() => setUseCustomKey(false)}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <span className="text-sm">Use Emergent Universal Key (Default)</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useCustomKey}
+                      onChange={() => setUseCustomKey(true)}
+                      className="w-4 h-4 rounded accent-purple-500"
+                    />
+                    <span className="text-sm">Use Custom API Key</span>
+                  </label>
+                </div>
+                {useCustomKey && (
+                  <div className="flex items-center gap-2">
+                    <Key className="w-4 h-4 text-white/40" />
+                    <input
+                      type="password"
+                      value={customApiKey}
+                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      placeholder="Enter your API key (OpenAI, Anthropic, or Google)"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm 
+                               focus:outline-none focus:border-purple-500/50 placeholder:text-white/30"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Layout - Split Screen */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[calc(100vh-200px)]">
@@ -317,7 +461,9 @@ const RemotionStudioView = () => {
                     className={`max-w-[85%] p-4 rounded-2xl ${
                       msg.role === 'user' 
                         ? 'bg-gradient-to-br from-purple-500/30 to-indigo-500/30 border border-purple-500/20' 
-                        : 'glass-light border border-white/10'
+                        : msg.role === 'system'
+                          ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-500/20'
+                          : 'glass-light border border-white/10'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
@@ -328,6 +474,13 @@ const RemotionStudioView = () => {
                           </div>
                           <span className="text-xs font-medium text-purple-300">You</span>
                         </>
+                      ) : msg.role === 'system' ? (
+                        <>
+                          <div className="w-6 h-6 rounded-full bg-yellow-500/30 flex items-center justify-center">
+                            <Sparkles className="w-3 h-3 text-yellow-400" />
+                          </div>
+                          <span className="text-xs font-medium text-yellow-300">System</span>
+                        </>
                       ) : (
                         <>
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-purple-500 flex items-center justify-center">
@@ -337,7 +490,7 @@ const RemotionStudioView = () => {
                         </>
                       )}
                     </div>
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     {msg.config && (
                       <div className="mt-3 p-2 rounded-lg bg-black/30 text-xs font-mono">
                         <span className="text-emerald-400">Config:</span>{' '}
@@ -355,6 +508,7 @@ const RemotionStudioView = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
                   <span className="font-medium">Multi-Agent Generation in Progress...</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-white/10">{modelProvider}</span>
                 </div>
                 <div className="space-y-3">
                   {agents.map((agent, idx) => (
@@ -392,7 +546,7 @@ const RemotionStudioView = () => {
 
           {/* Input Area */}
           <div className="p-4 border-t border-white/10 bg-black/20">
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3">
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -403,25 +557,44 @@ const RemotionStudioView = () => {
                   }
                 }}
                 placeholder="Describe your video animation... (e.g., 'Create a text reveal animation with spring physics')"
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm 
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm 
                          resize-none focus:outline-none focus:border-purple-500/50 placeholder:text-white/30"
                 rows={3}
                 disabled={isGenerating}
               />
-              <button
-                onClick={handleGenerate}
-                disabled={!prompt.trim() || isGenerating}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 
-                         hover:from-purple-400 hover:to-indigo-500 disabled:opacity-50 
-                         disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-                Generate
-              </button>
+              <div className="flex gap-2">
+                {/* Enhance Prompt Button */}
+                <button
+                  onClick={handleEnhancePrompt}
+                  disabled={!prompt.trim() || isEnhancing || isGenerating}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 
+                           hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 
+                           disabled:cursor-not-allowed transition-all font-medium flex items-center gap-2 text-sm"
+                >
+                  {isEnhancing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-4 h-4" />
+                  )}
+                  Enhance Prompt
+                </button>
+                
+                {/* Generate Button */}
+                <button
+                  onClick={handleGenerate}
+                  disabled={!prompt.trim() || isGenerating}
+                  className="flex-1 px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 
+                           hover:from-purple-400 hover:to-indigo-500 disabled:opacity-50 
+                           disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center gap-2"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  Generate Code
+                </button>
+              </div>
             </div>
           </div>
         </div>
