@@ -6412,7 +6412,7 @@ RESPOND WITH VALID JSON:
     "key_animations": ["animation 1", "animation 2"]
 }"""
         
-        chat3 = get_chat_instance(generator_prompt, model_type="fast")
+        chat3 = get_remotion_chat_instance(generator_prompt, api_key, provider)
         msg3 = UserMessage(text=f"""Requirements: {json.dumps(reqs_data)}
 Architecture: {json.dumps(arch_data)}
 
@@ -6423,7 +6423,7 @@ Generate complete Remotion code.""")
         code_result = await chat3.send_message(msg3)
         code_data = safe_parse_json(code_result, {"code": "// Error generating code", "explanation": "Failed"})
         
-        # Agent 4: Code Reviewer (Claude)
+        # Agent 4: Code Reviewer
         reviewer_prompt = """You are a Remotion code reviewer.
         
 Review the generated code for:
@@ -6444,7 +6444,7 @@ RESPOND WITH JSON:
     "improved_code": "Improved version if needed (or null)"
 }"""
         
-        chat4 = get_chat_instance(reviewer_prompt, model_type="fast")
+        chat4 = get_remotion_chat_instance(reviewer_prompt, api_key, provider)
         msg4 = UserMessage(text=f"Review this Remotion code:\n\n{code_data.get('code', '')}")
         review = await chat4.send_message(msg4)
         review_data = safe_parse_json(review, {})
