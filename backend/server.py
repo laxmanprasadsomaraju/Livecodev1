@@ -6470,6 +6470,16 @@ async def generate_interview_questions(request: GenerateInterviewRequest):
         
         session_id = str(uuid.uuid4())
         
+        # Use custom role if provided
+        effective_role = request.custom_role if request.custom_role else request.target_role
+        
+        # Generate unique seed for refresh to get different questions
+        refresh_hint = ""
+        if request.refresh:
+            import random
+            refresh_seed = random.randint(1000, 9999)
+            refresh_hint = f"\n\nIMPORTANT: Generate COMPLETELY DIFFERENT questions from typical interviews. Use creativity and variety. Seed: {refresh_seed}"
+        
         stage_configs = {
             "hr": {
                 "name": "HR Round",
@@ -6498,9 +6508,9 @@ async def generate_interview_questions(request: GenerateInterviewRequest):
         for stage in stages_to_generate:
             config = stage_configs.get(stage, stage_configs["technical"])
             
-            system_prompt = f"""You are an expert interviewer for {request.company_name} hiring a {request.target_role}.
+            system_prompt = f"""You are an expert interviewer for {request.company_name} hiring a {effective_role}.
 
-Generate {request.num_questions} interview questions for the {config['name']}.
+Generate {request.num_questions} UNIQUE interview questions for the {config['name']}.
 
 FOCUS: {config['focus']}
 QUESTION TYPES: {', '.join(config['types'])}
@@ -6511,6 +6521,8 @@ RULES:
 3. Questions should be appropriate for {request.company_name}'s culture and interview style
 4. For technical questions, relate to skills mentioned (or missing) in CV
 5. Be realistic - these should sound like real interview questions
+6. Make questions SPECIFIC to the {effective_role} role
+{refresh_hint}
 
 CV HIGHLIGHTS TO REFERENCE:
 {cv_data.get('raw_text', '')[:5000]}
@@ -6530,7 +6542,7 @@ RESPOND ONLY WITH VALID JSON:
 }}"""
             
             chat = get_chat_instance(system_prompt, model_type="fast")
-            msg = UserMessage(text=f"Generate interview questions for {stage} round")
+            msg = UserMessage(text=f"Generate interview questions for {stage} round for {effective_role}")
             response = await chat.send_message(msg)
             data = safe_parse_json(response, {"questions": []})
             
