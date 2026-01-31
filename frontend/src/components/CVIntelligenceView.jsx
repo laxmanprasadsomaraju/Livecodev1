@@ -1018,6 +1018,37 @@ const CVIntelligenceView = () => {
                 >
                   Raw Document
                 </button>
+                <button
+                  onClick={async () => {
+                    setViewMode("ai-compare");
+                    if (!aiImprovedCV) {
+                      setIsGeneratingAIView(true);
+                      try {
+                        const response = await fetch(`${BACKEND_URL}/api/cv/ai-improve`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            cv_id: cvData.cv_id,
+                            raw_text: cvData.raw_text
+                          })
+                        });
+                        const data = await response.json();
+                        setAiImprovedCV(data.improved_text);
+                      } catch (error) {
+                        toast.error("Failed to generate AI view");
+                      } finally {
+                        setIsGeneratingAIView(false);
+                      }
+                    }
+                  }}
+                  className={`px-3 py-1 rounded text-sm transition-all ${
+                    viewMode === "ai-compare" 
+                      ? "bg-green-500 text-white" 
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  AI Comparison
+                </button>
               </div>
             </div>
 
@@ -1029,7 +1060,11 @@ const CVIntelligenceView = () => {
                   <p className="text-white/50 text-sm">Select any text to get AI suggestions</p>
                 </div>
                 <div 
-                  className="p-6 rounded-lg bg-white/5 border border-white/10 whitespace-pre-wrap text-white/80 text-sm font-mono leading-relaxed select-text"
+                  className="p-6 rounded-lg bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-white/10 whitespace-pre-wrap text-white/90 text-sm font-mono leading-relaxed select-text shadow-xl"
+                  style={{
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+                  }}
                   onMouseUp={(e) => {
                     const selection = window.getSelection();
                     const text = selection.toString().trim();
@@ -1043,6 +1078,42 @@ const CVIntelligenceView = () => {
                 >
                   {cvData.raw_text}
                 </div>
+              </div>
+            )}
+
+            {/* AI COMPARISON VIEW */}
+            {viewMode === "ai-compare" && (
+              <div className="space-y-4">
+                {isGeneratingAIView ? (
+                  <div className="glass-light rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
+                    <p className="text-white">Generating AI-improved version...</p>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {/* Original */}
+                    <div className="glass-light rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-orange-400" />
+                        Original CV
+                      </h3>
+                      <div className="p-4 rounded-lg bg-white/5 border border-white/10 max-h-[600px] overflow-y-auto">
+                        <pre className="text-white/80 text-xs font-mono whitespace-pre-wrap">{cvData.raw_text}</pre>
+                      </div>
+                    </div>
+                    
+                    {/* AI Improved */}
+                    <div className="glass-light rounded-xl p-6">
+                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-green-400" />
+                        AI-Improved CV
+                      </h3>
+                      <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 max-h-[600px] overflow-y-auto">
+                        <pre className="text-white/90 text-xs font-mono whitespace-pre-wrap">{aiImprovedCV || "Generating..."}</pre>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
