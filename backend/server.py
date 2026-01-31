@@ -6012,7 +6012,7 @@ RESPOND ONLY WITH VALID JSON:
 }"""
     
     chat = get_chat_instance(system_prompt, model_type="fast")
-    msg = UserMessage(text=f"Parse this CV:\n\n{raw_text[:15000]}")  # Limit for context
+    msg = UserMessage(text=f"Parse this CV and extract ALL sections with COMPLETE content. Do not miss any projects or experience entries:\n\n{raw_text[:25000]}")  # Increased limit
     response = await chat.send_message(msg)
     
     return safe_parse_json(response, {
