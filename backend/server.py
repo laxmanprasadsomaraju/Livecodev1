@@ -5912,28 +5912,54 @@ class CompanyResearchResponse(BaseModel):
 
 # Helper functions for CV parsing
 def extract_text_from_pdf(file_content: bytes) -> str:
-    """Extract text from PDF using pdfplumber"""
+    """Extract FULL text from PDF using pdfplumber"""
     import pdfplumber
     import io
     
     text_parts = []
     with pdfplumber.open(io.BytesIO(file_content)) as pdf:
         for page in pdf.pages:
-            page_text = page.extract_text()
+            # Extract text with better settings for complete extraction
+            page_text = page.extract_text(
+                x_tolerance=3,
+                y_tolerance=3,
+                layout=True,  # Preserve layout
+                x_density=7.25,
+                y_density=13
+            )
             if page_text:
                 text_parts.append(page_text)
-    return "\n".join(text_parts)
+    
+    full_text = "\n\n".join(text_parts)
+    logger.info(f"PDF extraction: {len(full_text)} characters from {len(text_parts)} pages")
+    return full_text
 
 def extract_text_from_docx(file_content: bytes) -> str:
-    """Extract text from DOCX using python-docx"""
+    """Extract FULL text from DOCX using python-docx"""
     from docx import Document
     import io
     
     doc = Document(io.BytesIO(file_content))
     text_parts = []
+    
+    # Extract from paragraphs
     for para in doc.paragraphs:
-        text_parts.append(para.text)
-    return "\n".join(text_parts)
+        if para.text.strip():
+            text_parts.append(para.text)
+    
+    # Also extract from tables
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = []
+            for cell in row.cells:
+                if cell.text.strip():
+                    row_text.append(cell.text.strip())
+            if row_text:
+                text_parts.append(" | ".join(row_text))
+    
+    full_text = "\n".join(text_parts)
+    logger.info(f"DOCX extraction: {len(full_text)} characters")
+    return full_text
 
 def is_latex_document(text: str) -> bool:
     """Check if text is LaTeX"""
