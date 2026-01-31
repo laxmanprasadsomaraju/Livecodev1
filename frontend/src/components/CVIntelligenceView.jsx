@@ -2076,6 +2076,7 @@ const CVIntelligenceView = () => {
                 </div>
               </div>
             </div>
+            </div>
           )}
         </div>
       )}
