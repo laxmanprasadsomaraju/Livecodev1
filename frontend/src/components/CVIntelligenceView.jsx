@@ -747,6 +747,12 @@ const CVIntelligenceView = () => {
       {activeTab === "editor" && cvData && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
+            {/* Info Banner */}
+            <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-start gap-2">
+              <Info className="w-4 h-4 text-indigo-400 mt-0.5 flex-shrink-0" />
+              <p className="text-indigo-200/80 text-xs">Click any section to edit with AI. Use the action buttons to delete, add text, or merge sections.</p>
+            </div>
+            
             {cvData.contact_info && Object.keys(cvData.contact_info).length > 0 && (
               <div className="glass-light rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -764,13 +770,12 @@ const CVIntelligenceView = () => {
                 </div>
               </div>
             )}
+            
             {cvData.sections?.map((section) => {
               const Icon = SECTION_ICONS[section.type] || FileText;
               const colorClass = SECTION_COLORS[section.type] || SECTION_COLORS.other;
               return (
-                <div key={section.id} onClick={() => handleSectionClick(section)}
-                  className={`glass-light rounded-xl p-6 cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-indigo-500/50 group
-                    ${selectedSection?.id === section.id ? "ring-2 ring-indigo-500" : ""}`}>
+                <div key={section.id} className="glass-light rounded-xl p-6 transition-all duration-300 hover:ring-2 hover:ring-indigo-500/50 group">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${colorClass} flex items-center justify-center`}>
@@ -778,18 +783,41 @@ const CVIntelligenceView = () => {
                       </div>
                       {section.title}
                     </h3>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-xs text-white/40">Click to edit</span>
-                      <Edit3 className="w-4 h-4 text-indigo-400" />
+                    {/* Section Action Buttons */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => handleSectionClick(section)}
+                        className="p-2 rounded-lg hover:bg-indigo-500/20 text-indigo-400 transition-colors cursor-pointer" title="Edit with AI">
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setShowAddTextModal(section); setAdditionalText(""); }}
+                        className="p-2 rounded-lg hover:bg-green-500/20 text-green-400 transition-colors cursor-pointer" title="Add text">
+                        <PlusCircle className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setShowMergeModal(section); setMergeTargetId(""); }}
+                        className="p-2 rounded-lg hover:bg-yellow-500/20 text-yellow-400 transition-colors cursor-pointer" title="Merge into another section">
+                        <Merge className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteSection(section.id); }}
+                        className="p-2 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors cursor-pointer" title="Delete section">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                  <div className="text-white/70 text-sm whitespace-pre-wrap">
-                    {section.content?.length > 500 ? section.content.substring(0, 500) + "..." : section.content}
+                  <div onClick={() => handleSectionClick(section)} className="text-white/70 text-sm whitespace-pre-wrap cursor-pointer">
+                    {section.content?.length > 600 ? section.content.substring(0, 600) + "..." : section.content}
                   </div>
                 </div>
               );
             })}
+            
+            {/* Add New Section Button */}
+            <button onClick={() => setShowAddSectionModal(true)}
+              className="w-full p-4 rounded-xl border-2 border-dashed border-white/20 hover:border-indigo-500/50 hover:bg-white/5 transition-all flex items-center justify-center gap-2 text-white/50 hover:text-white cursor-pointer">
+              <Plus className="w-5 h-5" />
+              Add New Section
+            </button>
           </div>
+          
           <div className="space-y-4">
             <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -809,13 +837,35 @@ const CVIntelligenceView = () => {
             <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
               <div className="space-y-2">
-                <Button onClick={() => setActiveTab("analyze")} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
+                <Button onClick={() => setActiveTab("analyze")} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer">
                   <Target className="w-4 h-4 mr-2" />Analyze for Job
                 </Button>
-                <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full border-white/20 hover:bg-white/10">
+                <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full border-white/20 hover:bg-white/10 cursor-pointer">
                   <RefreshCw className="w-4 h-4 mr-2" />Upload New CV
                 </Button>
               </div>
+            </div>
+            
+            {/* Section Management Tips */}
+            <div className="glass-light rounded-xl p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-amber-400" />
+                Section Tips
+              </h3>
+              <ul className="space-y-2 text-xs text-white/70">
+                <li className="flex items-start gap-2">
+                  <Edit3 className="w-3 h-3 text-indigo-400 mt-0.5" />Edit: AI-powered editing
+                </li>
+                <li className="flex items-start gap-2">
+                  <PlusCircle className="w-3 h-3 text-green-400 mt-0.5" />Add: Paste missing text
+                </li>
+                <li className="flex items-start gap-2">
+                  <Merge className="w-3 h-3 text-yellow-400 mt-0.5" />Merge: Combine sections
+                </li>
+                <li className="flex items-start gap-2">
+                  <Trash2 className="w-3 h-3 text-red-400 mt-0.5" />Delete: Remove unwanted
+                </li>
+              </ul>
             </div>
           </div>
         </div>
