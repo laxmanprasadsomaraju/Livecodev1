@@ -1726,6 +1726,61 @@ const CVIntelligenceView = () => {
                         <p className="text-white/50 text-sm">Practice this round only</p>
                       </button>
                     ))}
+                    {customRoles.map((role, idx) => (
+                      <button
+                        key={`custom-${idx}`}
+                        onClick={() => generateInterview(role.id)}
+                        disabled={isGeneratingInterview}
+                        className="p-6 rounded-xl border border-white/10 hover:border-white/20 transition-all text-left bg-orange-500/20"
+                      >
+                        <Star className="w-8 h-8 text-orange-400 mb-3" />
+                        <h4 className="text-white font-semibold mb-1">{role.name}</h4>
+                        <p className="text-white/50 text-sm">Custom Role</p>
+                      </button>
+                    ))}
+                    {!isAddingRole ? (
+                      <button
+                        onClick={() => setIsAddingRole(true)}
+                        className="p-6 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 transition-all text-center"
+                      >
+                        <Plus className="w-8 h-8 text-white/40 mx-auto mb-3" />
+                        <h4 className="text-white/60 font-medium">Add Custom Role</h4>
+                      </button>
+                    ) : (
+                      <div className="p-6 rounded-xl border border-white/20 bg-white/5">
+                        <input
+                          type="text"
+                          value={newRoleName}
+                          onChange={(e) => setNewRoleName(e.target.value)}
+                          placeholder="Role name..."
+                          className="w-full mb-2 px-3 py-2 rounded bg-white/5 border border-white/10 text-white text-sm"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (newRoleName.trim()) {
+                                setCustomRoles([...customRoles, { id: `custom_${Date.now()}`, name: newRoleName }]);
+                                setNewRoleName("");
+                                setIsAddingRole(false);
+                              }
+                            }}
+                            className="flex-1 bg-green-500"
+                          >
+                            Add
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => { setIsAddingRole(false); setNewRoleName(""); }}
+                            variant="outline"
+                            className="border-white/20"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <Button
