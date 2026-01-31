@@ -720,9 +720,7 @@ agent_communication:
         comment: "✅ PASSED - POST /api/cv/learning-roadmap working perfectly. Successfully generates 14-day learning roadmap for Senior Software Engineer role. Returns all required fields: timeframe_days (14), daily_plan (14 items), key_skills_to_learn (4), resources (4), interview_focus_areas (4), practice_questions (6). Daily plan structure valid with day, focus, tasks (3 per day), time_hours (3), milestones. Realistic roadmap covering Algorithm Refresh, System Design, Behavioral Prep, Mock Interviews. Tailored to CV gaps and target role requirements."
 
 test_plan:
-  current_focus:
-    - "Remotion Code Generation API"
-    - "Remotion Code Refinement API"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
