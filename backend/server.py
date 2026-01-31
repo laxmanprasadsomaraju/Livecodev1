@@ -5970,19 +5970,24 @@ def is_latex_document(text: str) -> bool:
 
 async def ai_parse_cv_sections(raw_text: str, file_type: str) -> Dict:
     """Use AI to intelligently parse CV sections"""
-    system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract structured sections.
+    system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract ALL structured sections.
 
-RULES:
-1. Identify all major sections (Experience, Education, Skills, Projects, Summary, Certifications, etc.)
-2. For each section, extract:
+CRITICAL REQUIREMENTS:
+1. Extract EVERY section - do not miss any projects, experience entries, or content
+2. If there are multiple projects, create ONE section called "projects" and include ALL projects in the content
+3. If there are multiple experience entries, include ALL of them in ONE "experience" section
+4. DO NOT truncate or abbreviate - include FULL TEXT of each section
+5. For each section, extract:
    - Section type (experience, education, skills, projects, summary, certifications, other)
    - Section title as written in CV
-   - Full content of that section
+   - COMPLETE content of that section (all text, all bullet points, all entries)
    - Individual bullet points if present
    - Approximate line numbers (start and end)
-3. Also extract contact info (name, email, phone, linkedin, github, etc.)
-4. Be thorough - don't miss any sections
-5. Preserve exact formatting and text
+6. Also extract contact info (name, email, phone, linkedin, github, location, etc.)
+7. Be thorough and exhaustive - capture everything
+
+EXAMPLE FOR PROJECTS:
+If CV has 4 projects, your JSON should have ONE "projects" section with ALL 4 projects' complete text.
 
 RESPOND ONLY WITH VALID JSON:
 {
