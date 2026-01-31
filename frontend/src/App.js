@@ -44,6 +44,8 @@ function App() {
               </div>
             ) : mode === "moltbot-full" ? (
               <MoltbotFullView />
+            ) : mode === "remotion" ? (
+              <RemotionStudioView />
             ) : (
               <EnglishChatView />
             )}
