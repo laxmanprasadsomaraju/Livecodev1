@@ -1763,6 +1763,13 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
             self.test_cv_analyze,
             self.test_cv_company_research,
             self.test_cv_update_section,
+            # NEW CV Intelligence Phase 2 & Phase 3 Tests - REVIEW REQUEST FOCUS
+            self.test_cv_interview_generate,
+            self.test_cv_interview_get_session,
+            self.test_cv_interview_evaluate,
+            self.test_cv_interview_if_i_were_you,
+            self.test_cv_interview_session_summary,
+            self.test_cv_learning_roadmap,
             # NEW MOLTBOT INTEGRATION - HIGH PRIORITY
             self.test_video_transcript,
             self.test_video_contextual_help,
