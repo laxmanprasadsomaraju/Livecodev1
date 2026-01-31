@@ -2078,6 +2078,8 @@ const CVIntelligenceView = () => {
             </div>
             </div>
           )}
+        </div>
+      )}
 
       {/* Learning Roadmap Tab */}
       {activeTab === "roadmap" && cvData && (
