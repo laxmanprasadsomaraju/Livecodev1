@@ -1116,29 +1116,104 @@ const CVIntelligenceView = () => {
                     <p className="text-white">Generating AI-improved version...</p>
                   </div>
                 ) : (
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {/* Original */}
-                    <div className="glass-light rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-orange-400" />
-                        Original CV
-                      </h3>
-                      <div className="p-4 rounded-lg bg-white/5 border border-white/10 max-h-[600px] overflow-y-auto">
-                        <pre className="text-white/80 text-xs font-mono whitespace-pre-wrap">{cvData.raw_text}</pre>
+                  <>
+                    {/* Comparison Header */}
+                    <div className="glass-light rounded-xl p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20">
+                          <FileText className="w-4 h-4 text-orange-400" />
+                          <span className="text-orange-300 text-sm">Original</span>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-white/40" />
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20">
+                          <Sparkles className="w-4 h-4 text-green-400" />
+                          <span className="text-green-300 text-sm">AI-Enhanced</span>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setAiImprovedCV(null)}
+                        variant="outline"
+                        size="sm"
+                        className="border-white/20"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Regenerate
+                      </Button>
+                    </div>
+
+                    {/* Side-by-Side Comparison */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      {/* Original CV */}
+                      <div className="glass-light rounded-xl p-6">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/10">
+                          <FileText className="w-5 h-5 text-orange-400" />
+                          <h3 className="text-lg font-semibold text-white">Your Original CV</h3>
+                        </div>
+                        <div className="bg-white rounded-lg shadow-lg p-8 max-h-[800px] overflow-y-auto">
+                          <div 
+                            className="text-gray-900 text-sm leading-relaxed"
+                            style={{
+                              fontFamily: 'Georgia, serif',
+                              wordWrap: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word'
+                            }}
+                          >
+                            {cvData.raw_text}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* AI Improved CV */}
+                      <div className="glass-light rounded-xl p-6">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-green-500/20">
+                          <Sparkles className="w-5 h-5 text-green-400" />
+                          <h3 className="text-lg font-semibold text-white">AI-Enhanced Version</h3>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg shadow-lg p-8 max-h-[800px] overflow-y-auto border-2 border-green-500/20">
+                          <div 
+                            className="text-gray-900 text-sm leading-relaxed"
+                            style={{
+                              fontFamily: 'Georgia, serif',
+                              wordWrap: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word'
+                            }}
+                          >
+                            {aiImprovedCV || "Generating..."}
+                          </div>
+                        </div>
+                        
+                        {/* Improvement Highlights */}
+                        {aiImprovedCV && (
+                          <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <h4 className="text-white font-medium text-sm mb-2 flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                              Key Improvements Made
+                            </h4>
+                            <ul className="space-y-1 text-white/70 text-xs">
+                              <li className="flex items-start gap-2">
+                                <span className="text-green-400 mt-0.5">•</span>
+                                Enhanced with action verbs and metrics
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-green-400 mt-0.5">•</span>
+                                Improved formatting and clarity
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-green-400 mt-0.5">•</span>
+                                Optimized for ATS systems
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="text-green-400 mt-0.5">•</span>
+                                Highlighted achievements professionally
+                              </li>
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    
-                    {/* AI Improved */}
-                    <div className="glass-light rounded-xl p-6">
-                      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-green-400" />
-                        AI-Improved CV
-                      </h3>
-                      <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 max-h-[600px] overflow-y-auto">
-                        <pre className="text-white/90 text-xs font-mono whitespace-pre-wrap">{aiImprovedCV || "Generating..."}</pre>
-                      </div>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
             )}
