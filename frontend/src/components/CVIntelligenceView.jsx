@@ -52,6 +52,11 @@ const CVIntelligenceView = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Upload method state
+  const [uploadMethod, setUploadMethod] = useState("file"); // file, text, latex
+  const [pastedText, setPastedText] = useState("");
+  const [pastedFilename, setPastedFilename] = useState("pasted_cv.txt");
+  
   // Analysis state
   const [targetRole, setTargetRole] = useState("");
   const [companyName, setCompanyName] = useState("");
