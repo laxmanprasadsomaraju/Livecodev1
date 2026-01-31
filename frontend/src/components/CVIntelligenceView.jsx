@@ -823,41 +823,117 @@ const CVIntelligenceView = () => {
       {/* Upload Tab */}
       {activeTab === "upload" && (
         <div className="space-y-6">
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`
-              relative cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-300
-              ${isDragging ? "border-indigo-500 bg-indigo-500/10" : "border-white/20 hover:border-indigo-500/50 hover:bg-white/5"}
-              ${isUploading ? "pointer-events-none opacity-60" : ""}
-            `}
-          >
-            <div className="flex flex-col items-center justify-center py-16 px-8">
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-16 h-16 text-indigo-400 animate-spin mb-4" />
-                  <p className="text-lg font-medium text-white">Processing your CV...</p>
-                  <p className="text-sm text-white/50 mt-2">Extracting text and parsing sections</p>
-                </>
-              ) : (
-                <>
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-4">
-                    <Upload className="w-10 h-10 text-indigo-400" />
-                  </div>
-                  <p className="text-lg font-medium text-white mb-2">Drop your CV here or click to browse</p>
-                  <p className="text-sm text-white/50">Supports PDF, DOCX, LaTeX (.tex), and TXT files</p>
-                  <div className="flex gap-2 mt-4">
-                    {["PDF", "DOCX", "LaTeX", "TXT"].map(type => (
-                      <span key={type} className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs">{type}</span>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept=".pdf,.docx,.tex,.txt,.latex" onChange={handleFileSelect} className="hidden" />
+          {/* Upload Method Selector */}
+          <div className="flex gap-2 p-1 glass-light rounded-xl w-fit">
+            {[
+              { id: "file", label: "Upload File", icon: Upload },
+              { id: "text", label: "Paste Text", icon: FileText },
+              { id: "latex", label: "LaTeX Code", icon: Code }
+            ].map(method => (
+              <button
+                key={method.id}
+                onClick={() => setUploadMethod(method.id)}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${uploadMethod === method.id 
+                    ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-white" 
+                    : "text-white/60 hover:text-white hover:bg-white/5"
+                  }
+                `}
+              >
+                <method.icon className="w-4 h-4" />
+                {method.label}
+              </button>
+            ))}
           </div>
+
+          {/* File Upload Method */}
+          {uploadMethod === "file" && (
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`
+                relative cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-300
+                ${isDragging ? "border-indigo-500 bg-indigo-500/10" : "border-white/20 hover:border-indigo-500/50 hover:bg-white/5"}
+                ${isUploading ? "pointer-events-none opacity-60" : ""}
+              `}
+            >
+              <div className="flex flex-col items-center justify-center py-16 px-8">
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-16 h-16 text-indigo-400 animate-spin mb-4" />
+                    <p className="text-lg font-medium text-white">Processing your CV...</p>
+                    <p className="text-sm text-white/50 mt-2">Extracting text and parsing sections</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                      <Upload className="w-10 h-10 text-indigo-400" />
+                    </div>
+                    <p className="text-lg font-medium text-white mb-2">Drop your CV here or click to browse</p>
+                    <p className="text-sm text-white/50">Supports PDF, DOCX, LaTeX (.tex), and TXT files</p>
+                    <div className="flex gap-2 mt-4">
+                      {["PDF", "DOCX", "LaTeX", "TXT"].map(type => (
+                        <span key={type} className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs">{type}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept=".pdf,.docx,.tex,.txt,.latex" onChange={handleFileSelect} className="hidden" />
+            </div>
+          )}
+
+          {/* Text/LaTeX Paste Method */}
+          {(uploadMethod === "text" || uploadMethod === "latex") && (
+            <div className="glass-light rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                {uploadMethod === "latex" ? <Code className="w-5 h-5 text-purple-400" /> : <FileText className="w-5 h-5 text-indigo-400" />}
+                {uploadMethod === "latex" ? "Paste LaTeX Code" : "Paste Your CV Text"}
+              </h3>
+              <p className="text-white/60 text-sm mb-4">
+                {uploadMethod === "latex" 
+                  ? "Paste your complete LaTeX CV code including all commands and structure" 
+                  : "Copy and paste the full text from your CV - we'll parse it automatically"}
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-white/60 text-sm mb-2 block">Filename (optional)</label>
+                  <input
+                    type="text"
+                    value={pastedFilename}
+                    onChange={(e) => setPastedFilename(e.target.value)}
+                    placeholder="my_cv.txt"
+                    className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  />
+                </div>
+                
+                <Textarea
+                  value={pastedText}
+                  onChange={(e) => setPastedText(e.target.value)}
+                  placeholder={uploadMethod === "latex" 
+                    ? "\\documentclass{article}\n\\begin{document}\n...\nPaste your LaTeX code here\n...\n\\end{document}" 
+                    : "Paste your CV text here...\n\nExample:\nJohn Doe\nemail@example.com\n\nExperience:\n- Software Engineer at TechCorp\n..."}
+                  className="min-h-[400px] font-mono text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                />
+                
+                <Button
+                  onClick={uploadText}
+                  disabled={isUploading || !pastedText.trim()}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 py-6"
+                >
+                  {isUploading ? (
+                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Processing...</>
+                  ) : (
+                    <><Sparkles className="w-5 h-5 mr-2" />Parse and Continue</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Features Overview */}
           <div className="grid md:grid-cols-4 gap-4">
