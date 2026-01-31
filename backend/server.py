@@ -6391,6 +6391,37 @@ class GenerateInterviewRequest(BaseModel):
     company_name: str
     stage: str = "all"  # 'hr', 'technical', 'hiring_manager', 'all'
     num_questions: int = 5
+    refresh: bool = False  # Generate fresh questions different from previous
+    custom_role: Optional[str] = None  # User-defined custom role
+
+class InterviewerResearchRequest(BaseModel):
+    company_name: str
+    interviewer_names: List[str]  # List of interviewer names to research
+
+class InterviewerProfile(BaseModel):
+    name: str
+    current_role: Optional[str] = None
+    linkedin_hint: Optional[str] = None
+    background: Optional[str] = None
+    previous_experience: List[str] = []
+    expertise_areas: List[str] = []
+    interview_style_hints: List[str] = []
+    talking_points: List[str] = []
+
+class EnhancedCompanyResearch(BaseModel):
+    company_name: str
+    industry: str
+    description: str
+    culture_insights: List[str]
+    interview_tips: List[str]
+    common_questions: List[str]
+    values: List[str]
+    recent_news: List[Dict[str, str]]  # Enhanced with title, summary, date
+    case_studies: List[Dict[str, str]]  # title, summary, key_takeaways
+    recent_achievements: List[str]
+    tech_stack: List[str]
+    team_structure: Optional[str] = None
+    similar_roles: List[Dict[str, Any]]
 
 class AnswerEvaluationRequest(BaseModel):
     session_id: str
