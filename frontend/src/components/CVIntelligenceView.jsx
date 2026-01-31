@@ -73,6 +73,21 @@ const CVIntelligenceView = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editResult, setEditResult] = useState(null);
   
+  // New section management state
+  const [isAddingSection, setIsAddingSection] = useState(false);
+  const [newSectionType, setNewSectionType] = useState("other");
+  const [newSectionTitle, setNewSectionTitle] = useState("");
+  const [newSectionContent, setNewSectionContent] = useState("");
+  const [aiSuggestions, setAiSuggestions] = useState(null);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  
+  // Chat edit state
+  const [chatSection, setChatSection] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatting, setIsChatting] = useState(false);
+  const [selectedSections, setSelectedSections] = useState([]);  // For merging
+  
   // Interview state
   const [interviewSession, setInterviewSession] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
