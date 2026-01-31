@@ -1124,6 +1124,8 @@ const CVIntelligenceView = () => {
                 </div>
               );
             })}
+              </>
+            )}
           </div>
 
           {/* Sidebar */}
