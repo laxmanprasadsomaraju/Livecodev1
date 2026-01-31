@@ -6315,7 +6315,11 @@ RESPOND WITH JSON:
 async def generate_remotion_code(request: RemotionVideoRequest):
     """Multi-agent Remotion code generation"""
     try:
-        # Agent 1: Requirements Analyzer (Claude)
+        # Use custom key if provided, else use default
+        api_key = request.custom_api_key if request.custom_api_key else EMERGENT_LLM_KEY
+        provider = request.model_provider or "gemini"
+        
+        # Agent 1: Requirements Analyzer
         requirements_prompt = """You are a Remotion video requirements analyzer.
         
 Analyze the user's video request and extract:
@@ -6337,7 +6341,7 @@ RESPOND WITH JSON:
     "style": "modern, minimalist"
 }"""
         
-        chat1 = get_chat_instance(requirements_prompt, model_type="fast")
+        chat1 = get_remotion_chat_instance(requirements_prompt, api_key, provider)
         msg1 = UserMessage(text=f"User wants: {request.user_prompt}")
         requirements = await chat1.send_message(msg1)
         reqs_data = safe_parse_json(requirements, {})
