@@ -1451,15 +1451,26 @@ const CVIntelligenceView = () => {
                 <Building2 className="w-5 h-5 text-purple-400" />
                 Company Research
               </h3>
-              <Button
-                onClick={researchCompany}
-                disabled={isResearching || !companyName.trim()}
-                variant="outline"
-                className="w-full border-white/20 hover:bg-white/10"
-              >
-                {isResearching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-                {isResearching ? "Researching..." : `Research ${companyName || "Company"}`}
-              </Button>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deepResearch || false}
+                    onChange={(e) => setDeepResearch(e.target.checked)}
+                    className="w-4 h-4 rounded border-white/20 bg-white/5"
+                  />
+                  <span className="text-white/70 text-sm">Deep Research (case studies, news, achievements)</span>
+                </label>
+                <Button
+                  onClick={researchCompany}
+                  disabled={isResearching || !companyName.trim()}
+                  variant="outline"
+                  className="w-full border-white/20 hover:bg-white/10"
+                >
+                  {isResearching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
+                  {isResearching ? "Researching..." : `Research ${companyName || "Company"}`}
+                </Button>
+              </div>
             </div>
           </div>
 
