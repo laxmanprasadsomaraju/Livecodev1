@@ -6453,11 +6453,12 @@ RESPOND WITH JSON:
         final_code = review_data.get('improved_code') if review_data.get('improved_code') else code_data.get('code', '')
         
         # Build agent thoughts trail
+        provider_label = provider.capitalize()
         agent_thoughts = [
-            {"agent": "Requirements Analyzer (Claude)", "output": json.dumps(reqs_data, indent=2)},
-            {"agent": "Code Architect (GPT)", "output": json.dumps(arch_data, indent=2)},
-            {"agent": "Code Generator (Gemini)", "output": code_data.get('explanation', '')},
-            {"agent": "Code Reviewer (Claude)", "output": review_data.get('review', '')}
+            {"agent": f"Requirements Analyzer ({provider_label})", "output": json.dumps(reqs_data, indent=2)},
+            {"agent": f"Code Architect ({provider_label})", "output": json.dumps(arch_data, indent=2)},
+            {"agent": f"Code Generator ({provider_label})", "output": code_data.get('explanation', '')},
+            {"agent": f"Code Reviewer ({provider_label})", "output": review_data.get('review', '')}
         ]
         
         return RemotionCodeResponse(
