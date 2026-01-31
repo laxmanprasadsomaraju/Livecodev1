@@ -1448,6 +1448,261 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
             self.failed_tests.append({"test": "CV Update Section", "error": str(e)})
             return False, {}
 
+    # ============== NEW ENHANCED CV INTELLIGENCE APIs TESTS ==============
+    
+    def test_cv_common_roles(self):
+        """Test Common Roles API - GET /api/cv/common-roles"""
+        success, response = self.run_test("CV Common Roles", "GET", "cv/common-roles", 200, timeout=30)
+        
+        if success and response:
+            # Check if response has roles array
+            if 'roles' in response:
+                roles = response['roles']
+                print(f"   ✓ Found {len(roles)} common roles")
+                
+                # Check structure of first role
+                if roles and len(roles) > 0:
+                    first_role = roles[0]
+                    expected_keys = ["id", "title", "variants"]
+                    if all(key in first_role for key in expected_keys):
+                        print(f"   ✓ Role structure valid: {first_role.get('title', 'N/A')}")
+                        print(f"   ✓ Variants: {len(first_role.get('variants', []))}")
+                        
+                        # Check for expected roles
+                        role_titles = [role.get('title', '') for role in roles]
+                        expected_roles = ['Software Engineer', 'Frontend Engineer', 'Backend Engineer']
+                        found_expected = [role for role in expected_roles if role in role_titles]
+                        print(f"   ✓ Expected roles found: {found_expected}")
+                        
+                        return True, response
+                    else:
+                        print(f"   ⚠️ Role structure missing expected keys")
+                else:
+                    print(f"   ⚠️ No roles found in response")
+            else:
+                print(f"   ⚠️ No 'roles' key in response")
+        
+        return success, response
+
+    def test_cv_interviewer_research(self):
+        """Test Interviewer Research API - POST /api/cv/research-interviewers"""
+        data = {
+            "company_name": "Intercom",
+            "interviewer_names": ["John Smith", "Sarah Johnson"]
+        }
+        
+        success, response = self.run_test("CV Interviewer Research", "POST", "cv/research-interviewers", 200, data, timeout=90)
+        
+        if success and response:
+            expected_keys = ["company", "interviewers", "research_note"]
+            if all(key in response for key in expected_keys):
+                company = response.get('company')
+                interviewers = response.get('interviewers', [])
+                research_note = response.get('research_note', '')
+                
+                print(f"   ✓ Company: {company}")
+                print(f"   ✓ Interviewers researched: {len(interviewers)}")
+                print(f"   ✓ Research note provided: {bool(research_note)}")
+                
+                # Check interviewer structure
+                if interviewers and len(interviewers) > 0:
+                    first_interviewer = interviewers[0]
+                    expected_interviewer_keys = ["name", "current_role", "linkedin_hint", "background", "previous_experience", "expertise_areas", "interview_style_hints", "talking_points"]
+                    if all(key in first_interviewer for key in expected_interviewer_keys):
+                        print(f"   ✓ Interviewer structure valid: {first_interviewer.get('name', 'N/A')}")
+                        print(f"   ✓ LinkedIn hint: {bool(first_interviewer.get('linkedin_hint'))}")
+                        print(f"   ✓ Background provided: {bool(first_interviewer.get('background'))}")
+                        print(f"   ✓ Expertise areas: {len(first_interviewer.get('expertise_areas', []))}")
+                        print(f"   ✓ Interview style hints: {len(first_interviewer.get('interview_style_hints', []))}")
+                        print(f"   ✓ Talking points: {len(first_interviewer.get('talking_points', []))}")
+                        
+                        return True, response
+                    else:
+                        print(f"   ⚠️ Interviewer structure missing expected keys")
+                else:
+                    print(f"   ⚠️ No interviewers found in response")
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+        
+        return success, response
+
+    def test_cv_enhanced_company_research(self):
+        """Test Enhanced Company Research API - POST /api/cv/company-research-enhanced"""
+        # Use form data as the endpoint expects
+        url = f"{self.base_url}/api/cv/company-research-enhanced"
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Enhanced Company Research...")
+        print(f"   URL: {url}")
+        
+        try:
+            # Use form data as the endpoint expects
+            form_data = {
+                'company_name': 'Intercom',
+                'target_role': 'Technical Support Engineer'
+            }
+            
+            response = requests.post(url, data=form_data, timeout=120)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    expected_keys = ["company_name", "industry", "description", "culture_insights", "interview_tips", "common_questions", "values", "recent_news", "case_studies", "recent_achievements", "tech_stack", "similar_roles"]
+                    if all(key in response_data for key in expected_keys):
+                        print(f"   ✓ Company: {response_data.get('company_name', 'N/A')}")
+                        print(f"   ✓ Industry: {response_data.get('industry', 'N/A')}")
+                        print(f"   ✓ Culture insights: {len(response_data.get('culture_insights', []))}")
+                        print(f"   ✓ Interview tips: {len(response_data.get('interview_tips', []))}")
+                        print(f"   ✓ Common questions: {len(response_data.get('common_questions', []))}")
+                        print(f"   ✓ Values: {len(response_data.get('values', []))}")
+                        
+                        # Check enhanced features
+                        recent_news = response_data.get('recent_news', [])
+                        case_studies = response_data.get('case_studies', [])
+                        recent_achievements = response_data.get('recent_achievements', [])
+                        tech_stack = response_data.get('tech_stack', [])
+                        similar_roles = response_data.get('similar_roles', [])
+                        
+                        print(f"   ✓ Recent news: {len(recent_news)} items")
+                        print(f"   ✓ Case studies: {len(case_studies)} items")
+                        print(f"   ✓ Recent achievements: {len(recent_achievements)} items")
+                        print(f"   ✓ Tech stack: {len(tech_stack)} items")
+                        print(f"   ✓ Similar roles: {len(similar_roles)} items")
+                        
+                        # Check recent_news structure
+                        if recent_news and len(recent_news) > 0:
+                            first_news = recent_news[0]
+                            news_keys = ["title", "summary", "date", "relevance"]
+                            if all(key in first_news for key in news_keys):
+                                print(f"   ✓ News structure valid with proper fields")
+                            else:
+                                print(f"   ⚠️ News structure missing expected keys")
+                        
+                        # Check case_studies structure
+                        if case_studies and len(case_studies) > 0:
+                            first_case = case_studies[0]
+                            case_keys = ["title", "summary", "key_takeaways"]
+                            if all(key in first_case for key in case_keys):
+                                print(f"   ✓ Case study structure valid with proper fields")
+                            else:
+                                print(f"   ⚠️ Case study structure missing expected keys")
+                        
+                        return True, response_data
+                    else:
+                        print(f"   ⚠️ Missing expected response keys")
+                        print(f"   Response keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'Non-dict response'}")
+                except:
+                    print("   Response: Non-JSON or empty")
+            else:
+                self.failed_tests.append({
+                    "test": "Enhanced Company Research",
+                    "expected": 200,
+                    "actual": response.status_code,
+                    "response": response.text[:200] if response.text else "Empty response"
+                })
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+
+            return success, response.json() if success and response.text else {}
+
+        except requests.exceptions.Timeout:
+            print(f"❌ Failed - Timeout after 120s")
+            self.failed_tests.append({"test": "Enhanced Company Research", "error": "Timeout"})
+            return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({"test": "Enhanced Company Research", "error": str(e)})
+            return False, {}
+
+    def test_cv_interview_generation_with_refresh(self):
+        """Test Interview Generation with Refresh - POST /api/cv/interview/generate"""
+        # First, create a test CV if we don't have one
+        if not hasattr(self, 'cv_id') or not self.cv_id:
+            print("🔄 Creating test CV for interview generation...")
+            cv_success, cv_response = self.test_cv_upload()
+            if not cv_success:
+                print("❌ Could not create test CV for interview generation")
+                return False, {}
+        
+        # Test 1: Interview generation with refresh=true and custom_role
+        data = {
+            "cv_id": self.cv_id,
+            "target_role": "Software Engineer",
+            "company_name": "Google",
+            "stage": "technical",
+            "num_questions": 3,
+            "refresh": True,
+            "custom_role": "AI Product Manager"
+        }
+        
+        success1, response1 = self.run_test("Interview Generation with Refresh (Custom Role)", "POST", "cv/interview/generate", 200, data, timeout=90)
+        
+        if success1 and response1:
+            expected_keys = ["session_id", "cv_id", "target_role", "company_name", "questions"]
+            if all(key in response1 for key in expected_keys):
+                questions1 = response1.get('questions', [])
+                print(f"   ✓ Generated {len(questions1)} questions for custom role")
+                
+                # Check if questions are for the custom_role "AI Product Manager"
+                if questions1 and len(questions1) > 0:
+                    first_question = questions1[0]
+                    question_text = first_question.get('question', '').lower()
+                    
+                    # Look for AI/Product Manager related keywords in questions
+                    ai_pm_keywords = ['ai', 'product', 'manager', 'artificial intelligence', 'machine learning', 'product management']
+                    found_keywords = [kw for kw in ai_pm_keywords if kw in question_text]
+                    
+                    if found_keywords:
+                        print(f"   ✓ Questions appear to be for AI Product Manager role (keywords: {found_keywords})")
+                    else:
+                        print(f"   ⚠️ Questions may not be tailored to AI Product Manager role")
+                    
+                    # Check question structure
+                    question_keys = ["question", "question_type", "expected_topics", "difficulty", "time_limit_seconds"]
+                    if all(key in first_question for key in question_keys):
+                        print(f"   ✓ Question structure valid")
+                    else:
+                        print(f"   ⚠️ Question structure missing expected keys")
+        
+        # Test 2: Generate again with refresh=true to verify different questions
+        data2 = {
+            "cv_id": self.cv_id,
+            "target_role": "Software Engineer",
+            "company_name": "Google", 
+            "stage": "technical",
+            "num_questions": 3,
+            "refresh": True,
+            "custom_role": "AI Product Manager"
+        }
+        
+        success2, response2 = self.run_test("Interview Generation with Refresh (Different Questions)", "POST", "cv/interview/generate", 200, data2, timeout=90)
+        
+        if success1 and success2 and response1 and response2:
+            questions1 = response1.get('questions', [])
+            questions2 = response2.get('questions', [])
+            
+            if questions1 and questions2:
+                # Compare questions to see if they're different
+                questions1_text = [q.get('question', '') for q in questions1]
+                questions2_text = [q.get('question', '') for q in questions2]
+                
+                # Check if at least some questions are different
+                different_questions = sum(1 for q1, q2 in zip(questions1_text, questions2_text) if q1 != q2)
+                
+                if different_questions > 0:
+                    print(f"   ✓ Refresh generated different questions ({different_questions}/{len(questions1)} different)")
+                else:
+                    print(f"   ⚠️ Refresh did not generate different questions")
+                
+                return True, {"first_generation": response1, "second_generation": response2}
+            else:
+                print(f"   ⚠️ Missing questions in one or both responses")
+        
+        return success1 and success2, {}
+
     # ============== NEW CV INTELLIGENCE PHASE 2 & PHASE 3 TESTS ==============
     
     def test_cv_interview_generate(self):
