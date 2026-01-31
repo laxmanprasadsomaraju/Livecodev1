@@ -111,6 +111,20 @@ const Header = ({ mode, onModeChange }) => {
             <span className="hidden md:inline">CV</span>
           </button>
           <button
+            data-testid="mode-remotion-btn"
+            onClick={() => onModeChange("remotion")}
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap
+              ${mode === "remotion" 
+                ? "mode-active text-white bg-gradient-to-r from-purple-500/20 to-orange-500/20" 
+                : "text-white/60 hover:text-white hover:bg-white/5"
+              }
+            `}
+          >
+            <Film className="w-4 h-4" />
+            <span className="hidden md:inline">Remotion</span>
+          </button>
+          <button
             data-testid="mode-ide-btn"
             onClick={() => onModeChange("ide")}
             className={`
