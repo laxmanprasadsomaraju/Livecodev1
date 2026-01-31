@@ -6362,6 +6362,506 @@ async def update_cv_section(cv_id: str = Form(...), section_id: str = Form(...),
         logger.error(f"Update section error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============== PHASE 2: INTERVIEW SIMULATION & EVALUATION ==============
+
+class InterviewQuestion(BaseModel):
+    id: str
+    stage: str  # 'hr', 'technical', 'hiring_manager'
+    question: str
+    question_type: str  # 'behavioral', 'technical', 'situational', 'cv_based'
+    expected_topics: List[str]
+    difficulty: str  # 'easy', 'medium', 'hard'
+    time_limit_seconds: int
+    follow_up_possible: bool
+
+class InterviewSession(BaseModel):
+    session_id: str
+    cv_id: str
+    target_role: str
+    company_name: str
+    current_stage: str
+    questions: List[InterviewQuestion]
+    answers: List[Dict[str, Any]]
+    overall_score: Optional[float] = None
+    created_at: str
+
+class GenerateInterviewRequest(BaseModel):
+    cv_id: str
+    target_role: str
+    company_name: str
+    stage: str = "all"  # 'hr', 'technical', 'hiring_manager', 'all'
+    num_questions: int = 5
+
+class AnswerEvaluationRequest(BaseModel):
+    session_id: str
+    question_id: str
+    answer_text: str
+    time_taken_seconds: int
+
+class AnswerEvaluationResponse(BaseModel):
+    question_id: str
+    score: int  # 0-100
+    clarity_score: int
+    structure_score: int
+    confidence_score: int
+    relevance_score: int
+    feedback: str
+    strengths: List[str]
+    improvements: List[str]
+    model_answer: str  # "If I were you" answer
+
+class IfIWereYouRequest(BaseModel):
+    cv_id: str
+    question: str
+    context: Optional[str] = None
+
+class LearningRoadmapRequest(BaseModel):
+    cv_id: str
+    target_role: str
+    timeframe_days: int = 14  # 7, 14, or 30
+
+class LearningRoadmapResponse(BaseModel):
+    timeframe_days: int
+    daily_plan: List[Dict[str, Any]]
+    key_skills_to_learn: List[Dict[str, Any]]
+    resources: List[Dict[str, Any]]
+    interview_focus_areas: List[str]
+    practice_questions: List[str]
+
+@api_router.post("/cv/interview/generate")
+async def generate_interview_questions(request: GenerateInterviewRequest):
+    """Generate interview questions based on CV, role, and company"""
+    try:
+        # Get CV
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        session_id = str(uuid.uuid4())
+        
+        stage_configs = {
+            "hr": {
+                "name": "HR Round",
+                "focus": "behavioral questions, motivation, company interest, culture fit",
+                "types": ["behavioral", "situational", "motivation"],
+                "difficulty": "easy"
+            },
+            "technical": {
+                "name": "Technical Round", 
+                "focus": "role-specific technical questions, CV-based deep dives, problem-solving",
+                "types": ["technical", "cv_based", "problem_solving"],
+                "difficulty": "medium"
+            },
+            "hiring_manager": {
+                "name": "Hiring Manager / Senior Engineer Round",
+                "focus": "system design, architectural decisions, leadership, 'explain your thinking' questions",
+                "types": ["system_design", "leadership", "depth"],
+                "difficulty": "hard"
+            }
+        }
+        
+        stages_to_generate = [request.stage] if request.stage != "all" else ["hr", "technical", "hiring_manager"]
+        
+        all_questions = []
+        
+        for stage in stages_to_generate:
+            config = stage_configs.get(stage, stage_configs["technical"])
+            
+            system_prompt = f"""You are an expert interviewer for {request.company_name} hiring a {request.target_role}.
+
+Generate {request.num_questions} interview questions for the {config['name']}.
+
+FOCUS: {config['focus']}
+QUESTION TYPES: {', '.join(config['types'])}
+
+RULES:
+1. Questions MUST be based on the candidate's CV - reference specific projects, skills, gaps
+2. Include a mix of standard and CV-specific questions
+3. Questions should be appropriate for {request.company_name}'s culture and interview style
+4. For technical questions, relate to skills mentioned (or missing) in CV
+5. Be realistic - these should sound like real interview questions
+
+CV HIGHLIGHTS TO REFERENCE:
+{cv_data.get('raw_text', '')[:5000]}
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "questions": [
+        {{
+            "question": "Full question text",
+            "question_type": "behavioral|technical|situational|cv_based|system_design|leadership",
+            "expected_topics": ["topic1", "topic2"],
+            "difficulty": "easy|medium|hard",
+            "time_limit_seconds": 120,
+            "follow_up_possible": true
+        }}
+    ]
+}}"""
+            
+            chat = get_chat_instance(system_prompt, model_type="fast")
+            msg = UserMessage(text=f"Generate interview questions for {stage} round")
+            response = await chat.send_message(msg)
+            data = safe_parse_json(response, {"questions": []})
+            
+            for idx, q in enumerate(data.get("questions", [])[:request.num_questions]):
+                question = InterviewQuestion(
+                    id=f"{stage}_{idx}_{uuid.uuid4().hex[:6]}",
+                    stage=stage,
+                    question=q.get("question", ""),
+                    question_type=q.get("question_type", "general"),
+                    expected_topics=q.get("expected_topics", []),
+                    difficulty=q.get("difficulty", config["difficulty"]),
+                    time_limit_seconds=q.get("time_limit_seconds", 120),
+                    follow_up_possible=q.get("follow_up_possible", True)
+                )
+                all_questions.append(question)
+        
+        # Create interview session
+        session = InterviewSession(
+            session_id=session_id,
+            cv_id=request.cv_id,
+            target_role=request.target_role,
+            company_name=request.company_name,
+            current_stage=stages_to_generate[0],
+            questions=[q.model_dump() for q in all_questions],
+            answers=[],
+            created_at=datetime.now(timezone.utc).isoformat()
+        )
+        
+        # Store session
+        await interviews_collection.insert_one(session.model_dump())
+        
+        return session
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Generate interview error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/cv/interview/{session_id}")
+async def get_interview_session(session_id: str):
+    """Get an interview session by ID"""
+    try:
+        session = await interviews_collection.find_one({"session_id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Interview session not found")
+        session.pop('_id', None)
+        return session
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get interview error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/interview/evaluate", response_model=AnswerEvaluationResponse)
+async def evaluate_interview_answer(request: AnswerEvaluationRequest):
+    """Evaluate an interview answer and provide scoring + model answer"""
+    try:
+        # Get session
+        session = await interviews_collection.find_one({"session_id": request.session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Interview session not found")
+        
+        # Find the question
+        question_data = None
+        for q in session.get('questions', []):
+            if q['id'] == request.question_id:
+                question_data = q
+                break
+        
+        if not question_data:
+            raise HTTPException(status_code=404, detail="Question not found")
+        
+        # Get CV for context
+        cv_data = await cv_collection.find_one({"cv_id": session['cv_id']})
+        
+        system_prompt = f"""You are a senior interviewer evaluating a candidate's answer.
+
+EVALUATE with these criteria (0-100 each):
+1. **Clarity**: Is the answer clear and easy to understand?
+2. **Structure**: Is the answer well-organized (STAR method, logical flow)?
+3. **Confidence**: Does the tone convey confidence (word choice, directness)?
+4. **Relevance**: Does it actually answer the question?
+
+ALSO PROVIDE:
+- Overall score (weighted average)
+- Specific strengths
+- Areas for improvement
+- "IF I WERE YOU" MODEL ANSWER: Based on the candidate's CV, how should they answer this?
+
+The model answer should:
+- Use ONLY information from the candidate's actual CV
+- NOT fabricate or exaggerate
+- Show how to frame their real experience effectively
+- Be a realistic answer they could give
+
+QUESTION: {question_data['question']}
+EXPECTED TOPICS: {question_data.get('expected_topics', [])}
+
+CANDIDATE'S CV SUMMARY:
+{cv_data.get('raw_text', '')[:3000] if cv_data else 'Not available'}
+
+CANDIDATE'S ANSWER:
+{request.answer_text}
+
+TIME TAKEN: {request.time_taken_seconds} seconds (limit was {question_data.get('time_limit_seconds', 120)})
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "score": 75,
+    "clarity_score": 80,
+    "structure_score": 70,
+    "confidence_score": 75,
+    "relevance_score": 75,
+    "feedback": "Detailed feedback paragraph...",
+    "strengths": ["Strength 1", "Strength 2"],
+    "improvements": ["Improvement 1", "Improvement 2"],
+    "model_answer": "If I were you, based on your CV, I would answer: ..."
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        msg = UserMessage(text="Evaluate this interview answer")
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "score": 50,
+            "clarity_score": 50,
+            "structure_score": 50,
+            "confidence_score": 50,
+            "relevance_score": 50,
+            "feedback": "Unable to evaluate answer",
+            "strengths": [],
+            "improvements": [],
+            "model_answer": "Unable to generate model answer"
+        })
+        
+        # Store the answer and evaluation
+        answer_record = {
+            "question_id": request.question_id,
+            "answer_text": request.answer_text,
+            "time_taken_seconds": request.time_taken_seconds,
+            "evaluation": data,
+            "answered_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await interviews_collection.update_one(
+            {"session_id": request.session_id},
+            {"$push": {"answers": answer_record}}
+        )
+        
+        return AnswerEvaluationResponse(
+            question_id=request.question_id,
+            score=data.get("score", 50),
+            clarity_score=data.get("clarity_score", 50),
+            structure_score=data.get("structure_score", 50),
+            confidence_score=data.get("confidence_score", 50),
+            relevance_score=data.get("relevance_score", 50),
+            feedback=data.get("feedback", ""),
+            strengths=data.get("strengths", []),
+            improvements=data.get("improvements", []),
+            model_answer=data.get("model_answer", "")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Evaluate answer error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/interview/if-i-were-you")
+async def get_model_answer(request: IfIWereYouRequest):
+    """Get a model answer for any question based on the candidate's CV"""
+    try:
+        # Get CV
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        system_prompt = f"""You are a senior career mentor helping a candidate prepare for interviews.
+
+The candidate has asked how to answer a specific interview question.
+
+YOUR TASK: Generate a model answer that:
+1. Uses ONLY information from their actual CV - NO fabrication
+2. Frames their real experience in the best possible light
+3. Uses appropriate structure (STAR method for behavioral, technical clarity for technical)
+4. Sounds natural and confident
+5. Is honest about gaps while emphasizing strengths
+
+CANDIDATE'S CV:
+{cv_data.get('raw_text', '')[:6000]}
+
+IMPORTANT: The answer should be something the candidate can actually say truthfully. Do not add skills or experiences they don't have.
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "model_answer": "The complete answer they should give...",
+    "key_points": ["Point to emphasize 1", "Point to emphasize 2"],
+    "structure_used": "STAR method / Technical explanation / etc.",
+    "honest_gaps": ["If asked about X, acknowledge you're still learning but..."],
+    "tips": ["Tip for delivery 1", "Tip for delivery 2"]
+}}"""
+        
+        context_info = f"\nAdditional context: {request.context}" if request.context else ""
+        
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        msg = UserMessage(text=f"""How should I answer this interview question?
+
+Question: {request.question}
+{context_info}""")
+        
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "model_answer": "Unable to generate answer",
+            "key_points": [],
+            "structure_used": "Unknown",
+            "honest_gaps": [],
+            "tips": []
+        })
+        
+        return data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"If I were you error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/interview/session-summary")
+async def get_interview_session_summary(session_id: str = Form(...)):
+    """Get summary and overall score for an interview session"""
+    try:
+        session = await interviews_collection.find_one({"session_id": session_id})
+        if not session:
+            raise HTTPException(status_code=404, detail="Interview session not found")
+        
+        answers = session.get('answers', [])
+        if not answers:
+            return {
+                "session_id": session_id,
+                "total_questions": len(session.get('questions', [])),
+                "answered_questions": 0,
+                "overall_score": None,
+                "summary": "No answers recorded yet"
+            }
+        
+        # Calculate scores
+        total_score = sum(a.get('evaluation', {}).get('score', 0) for a in answers)
+        avg_score = total_score / len(answers) if answers else 0
+        
+        # Get stage breakdown
+        stage_scores = {}
+        for a in answers:
+            q_id = a.get('question_id', '')
+            stage = q_id.split('_')[0] if '_' in q_id else 'unknown'
+            if stage not in stage_scores:
+                stage_scores[stage] = []
+            stage_scores[stage].append(a.get('evaluation', {}).get('score', 0))
+        
+        stage_averages = {
+            stage: sum(scores) / len(scores) if scores else 0
+            for stage, scores in stage_scores.items()
+        }
+        
+        return {
+            "session_id": session_id,
+            "total_questions": len(session.get('questions', [])),
+            "answered_questions": len(answers),
+            "overall_score": round(avg_score, 1),
+            "stage_scores": stage_averages,
+            "summary": f"Completed {len(answers)} questions with an average score of {round(avg_score, 1)}%"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Session summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============== PHASE 3: LEARNING ROADMAP ==============
+
+@api_router.post("/cv/learning-roadmap", response_model=LearningRoadmapResponse)
+async def generate_learning_roadmap(request: LearningRoadmapRequest):
+    """Generate a time-boxed learning roadmap focused on interview preparation"""
+    try:
+        # Get CV
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        system_prompt = f"""You are a career coach creating a focused learning roadmap for interview preparation.
+
+TIMEFRAME: {request.timeframe_days} days
+TARGET ROLE: {request.target_role}
+
+RULES:
+1. Focus ONLY on interview-relevant skills
+2. Be realistic about what can be learned in {request.timeframe_days} days
+3. Prioritize high-impact learning
+4. Include specific resources (courses, videos, articles)
+5. Balance technical prep with behavioral prep
+6. Include practice interview questions
+
+CANDIDATE'S CURRENT SKILLS (from CV):
+{cv_data.get('raw_text', '')[:4000]}
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "daily_plan": [
+        {{
+            "day": 1,
+            "focus": "Topic focus for the day",
+            "tasks": ["Task 1", "Task 2"],
+            "time_hours": 3,
+            "milestones": ["What you should know by end of day"]
+        }}
+    ],
+    "key_skills_to_learn": [
+        {{
+            "skill": "Skill name",
+            "priority": "high|medium|low",
+            "estimated_hours": 10,
+            "why_important": "Why this matters for the role"
+        }}
+    ],
+    "resources": [
+        {{
+            "name": "Resource name",
+            "type": "course|video|article|practice",
+            "url_hint": "Search term or platform",
+            "estimated_time": "2 hours"
+        }}
+    ],
+    "interview_focus_areas": ["Area 1", "Area 2"],
+    "practice_questions": ["Question 1 to practice", "Question 2 to practice"]
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="pro")
+        msg = UserMessage(text=f"Create a {request.timeframe_days}-day learning roadmap for {request.target_role}")
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "daily_plan": [],
+            "key_skills_to_learn": [],
+            "resources": [],
+            "interview_focus_areas": [],
+            "practice_questions": []
+        })
+        
+        return LearningRoadmapResponse(
+            timeframe_days=request.timeframe_days,
+            daily_plan=data.get("daily_plan", []),
+            key_skills_to_learn=data.get("key_skills_to_learn", []),
+            resources=data.get("resources", []),
+            interview_focus_areas=data.get("interview_focus_areas", []),
+            practice_questions=data.get("practice_questions", [])
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Learning roadmap error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the CV endpoints router (they were defined after the first include)
 app.include_router(api_router)
 
