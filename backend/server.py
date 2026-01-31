@@ -6095,6 +6095,361 @@ async def upload_cv(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/cv/{cv_id}")
+
+# ====== NEW TEXT/LATEX UPLOAD ENDPOINT ======
+
+class TextUploadRequest(BaseModel):
+    text_content: str
+    file_type: str = "txt"  # txt or latex
+    filename: Optional[str] = "pasted_cv.txt"
+
+@api_router.post("/cv/upload-text")
+async def upload_cv_text(request: TextUploadRequest):
+    """Upload CV as plain text or LaTeX code"""
+    try:
+        cv_id = str(uuid.uuid4())
+        raw_text = request.text_content.strip()
+        
+        if not raw_text:
+            raise HTTPException(status_code=400, detail="Text content cannot be empty")
+        
+        # Determine file type
+        file_type = request.file_type
+        if file_type not in ['txt', 'latex']:
+            # Auto-detect
+            file_type = 'latex' if is_latex_document(raw_text) else 'txt'
+        
+        # Calculate total lines
+        lines = raw_text.split('\n')
+        total_lines = len(lines)
+        
+        # Use AI to parse sections
+        parsed_data = await ai_parse_cv_sections(raw_text, file_type)
+        
+        # Build sections with IDs
+        sections = []
+        for idx, section_data in enumerate(parsed_data.get('sections', [])):
+            section = CVSection(
+                id=f"section_{idx}_{uuid.uuid4().hex[:8]}",
+                type=section_data.get('type', 'other'),
+                title=section_data.get('title', f'Section {idx+1}'),
+                content=section_data.get('content', ''),
+                bullets=section_data.get('bullets'),
+                start_line=section_data.get('start_line', 0),
+                end_line=section_data.get('end_line', 0),
+                raw_text=section_data.get('content', '')
+            )
+            sections.append(section)
+        
+        # Clean contact_info
+        contact_info = parsed_data.get('contact_info', {})
+        if contact_info:
+            contact_info = {k: str(v) for k, v in contact_info.items() if v is not None}
+        
+        # Create parsed CV object
+        parsed_cv = ParsedCV(
+            cv_id=cv_id,
+            filename=request.filename or "pasted_cv.txt",
+            file_type=file_type,
+            raw_text=raw_text,
+            sections=sections,
+            contact_info=contact_info if contact_info else None,
+            total_lines=total_lines,
+            created_at=datetime.now(timezone.utc).isoformat()
+        )
+        
+        # Store in database
+        await cv_collection.insert_one(parsed_cv.model_dump())
+        
+        return parsed_cv
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CV text upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ====== SECTION MANAGEMENT ENDPOINTS ======
+
+class AddSectionRequest(BaseModel):
+    cv_id: str
+    section_type: str  # experience, education, skills, projects, etc.
+    title: str
+    content: str
+    position: Optional[int] = None  # Insert at specific position, None = append
+
+@api_router.post("/cv/section/add")
+async def add_cv_section(request: AddSectionRequest):
+    """Add a new section to CV"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Create new section
+        new_section = CVSection(
+            id=f"section_{uuid.uuid4().hex[:8]}",
+            type=request.section_type,
+            title=request.title,
+            content=request.content,
+            bullets=[],
+            start_line=0,
+            end_line=0,
+            raw_text=request.content
+        )
+        
+        # Add to sections
+        sections = cv_data.get('sections', [])
+        if request.position is not None and 0 <= request.position <= len(sections):
+            sections.insert(request.position, new_section.model_dump())
+        else:
+            sections.append(new_section.model_dump())
+        
+        # Update in database
+        await cv_collection.update_one(
+            {"cv_id": request.cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "section": new_section, "message": "Section added successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Add section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/cv/section/{cv_id}/{section_id}")
+async def delete_cv_section(cv_id: str, section_id: str):
+    """Delete a section from CV"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Remove section
+        sections = [s for s in cv_data.get('sections', []) if s['id'] != section_id]
+        
+        if len(sections) == len(cv_data.get('sections', [])):
+            raise HTTPException(status_code=404, detail="Section not found")
+        
+        # Update in database
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": "Section deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class MergeSectionsRequest(BaseModel):
+    cv_id: str
+    section_ids: List[str]
+    merged_title: str
+    merged_type: str = "other"
+
+@api_router.post("/cv/section/merge")
+async def merge_cv_sections(request: MergeSectionsRequest):
+    """Merge multiple sections into one"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Find sections to merge
+        sections = cv_data.get('sections', [])
+        sections_to_merge = [s for s in sections if s['id'] in request.section_ids]
+        remaining_sections = [s for s in sections if s['id'] not in request.section_ids]
+        
+        if len(sections_to_merge) < 2:
+            raise HTTPException(status_code=400, detail="Need at least 2 sections to merge")
+        
+        # Merge content
+        merged_content = "\n\n".join([s['content'] for s in sections_to_merge if s.get('content')])
+        
+        # Create merged section
+        merged_section = CVSection(
+            id=f"section_merged_{uuid.uuid4().hex[:8]}",
+            type=request.merged_type,
+            title=request.merged_title,
+            content=merged_content,
+            bullets=[],
+            start_line=0,
+            end_line=0,
+            raw_text=merged_content
+        )
+        
+        # Add merged section at position of first merged section
+        first_position = next((i for i, s in enumerate(sections) if s['id'] in request.section_ids), 0)
+        remaining_sections.insert(first_position, merged_section.model_dump())
+        
+        # Update in database
+        await cv_collection.update_one(
+            {"cv_id": request.cv_id},
+            {"$set": {"sections": remaining_sections}}
+        )
+        
+        return {"success": True, "merged_section": merged_section, "message": "Sections merged successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Merge sections error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ChatEditSectionRequest(BaseModel):
+    cv_id: str
+    section_id: str
+    user_message: str
+    conversation_history: List[Dict[str, str]] = []
+
+@api_router.post("/cv/section/chat-edit")
+async def chat_edit_section(request: ChatEditSectionRequest):
+    """Chat-based section editing with AI"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": request.cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Find section
+        section = None
+        for s in cv_data.get('sections', []):
+            if s['id'] == request.section_id:
+                section = s
+                break
+        
+        if not section:
+            raise HTTPException(status_code=404, detail="Section not found")
+        
+        # Build conversation context
+        is_latex = cv_data.get('file_type') == 'latex'
+        
+        latex_instruction = ""
+        if is_latex:
+            latex_instruction = "IMPORTANT: This is LaTeX format. Preserve all LaTeX commands and syntax."
+        
+        system_prompt = f"""You are a CV editing assistant. You help users edit their CV sections through conversation.
+
+Current section type: {section.get('type', 'other')}
+Current section title: {section.get('title', 'Section')}
+
+{latex_instruction}
+
+GUIDELINES:
+1. Be conversational and helpful
+2. Make concrete edit suggestions
+3. Ask clarifying questions if needed
+4. Preserve formatting unless user wants to change it
+5. Don't add fake information
+
+RESPOND WITH JSON:
+{{
+    "response": "Your conversational response to the user",
+    "suggested_edit": "The edited version of the section (null if just asking questions)",
+    "explanation": "Brief explanation of changes made (if any)",
+    "needs_clarification": true/false
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        
+        # Add conversation history
+        full_context = f"Current section content:\n{section.get('content', '')}\n\n"
+        if request.conversation_history:
+            full_context += "Previous conversation:\n"
+            for msg in request.conversation_history[-3:]:  # Last 3 messages
+                full_context += f"{msg.get('role', 'user')}: {msg.get('content', '')}\n"
+        
+        full_context += f"\nUser: {request.user_message}"
+        
+        msg = UserMessage(text=full_context)
+        response = await chat.send_message(msg)
+        
+        result = safe_parse_json(response, {
+            "response": response or "I'm here to help edit your section!",
+            "suggested_edit": None,
+            "explanation": "",
+            "needs_clarification": False
+        })
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chat edit section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/section/ai-suggest")
+async def suggest_sections(cv_id: str):
+    """AI suggests missing or recommended sections"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        # Get existing sections
+        existing_sections = [s.get('type', 'other') for s in cv_data.get('sections', [])]
+        
+        system_prompt = """You are a CV expert. Analyze the provided CV and suggest missing sections that would strengthen it.
+
+Consider common CV sections:
+- Professional Summary
+- Work Experience
+- Education
+- Technical Skills
+- Projects
+- Certifications
+- Publications
+- Volunteer Work
+- Languages
+- Awards & Honors
+
+RESPOND WITH JSON:
+{
+    "suggested_sections": [
+        {
+            "type": "projects",
+            "title": "Projects",
+            "reason": "Why this section would help",
+            "priority": "high|medium|low",
+            "content_template": "Example of what to include"
+        }
+    ],
+    "optional_sections": [
+        {
+            "type": "volunteer",
+            "title": "Volunteer Experience",
+            "reason": "Could add if applicable"
+        }
+    ]
+}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"""Existing sections: {existing_sections}
+
+Current CV content:
+{cv_data.get('raw_text', '')[:5000]}""")
+        
+        response = await chat.send_message(msg)
+        result = safe_parse_json(response, {
+            "suggested_sections": [],
+            "optional_sections": []
+        })
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Suggest sections error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def get_cv(cv_id: str):
     """Get a stored CV by ID"""
     try:
