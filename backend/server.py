@@ -6685,10 +6685,37 @@ CV Content:
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/cv/company-research", response_model=CompanyResearchResponse)
-async def research_company(company_name: str = Form(...), target_role: str = Form(...)):
+async def research_company(company_name: str = Form(...), target_role: str = Form(...), deep_research: str = Form("false")):
     """Research company for interview preparation"""
     try:
-        system_prompt = """You are a career research specialist helping candidates prepare for interviews.
+        is_deep = deep_research.lower() == 'true'
+        
+        if is_deep:
+            system_prompt = """You are a career research specialist with deep research capabilities.
+
+Research the company EXTENSIVELY and provide COMPREHENSIVE insights including:
+- Case studies and success stories
+- Recent news (acquisitions, funding, product launches)
+- Major achievements and awards
+- Company culture and values
+- Interview preparation tips
+
+RESPOND ONLY WITH VALID JSON:
+{
+    "company_name": "Company Name",
+    "industry": "Industry",
+    "description": "Detailed company description",
+    "culture_insights": ["Insight 1", "Insight 2"],
+    "interview_tips": ["Tip 1", "Tip 2"],
+    "common_questions": ["Question 1", "..."],
+    "values": ["Value 1", "..."],
+    "recent_news": ["News 1", "News 2"],
+    "case_studies": ["Case study 1", "Case study 2"],
+    "achievements": ["Achievement 1", "Achievement 2"],
+    "similar_roles": [{"title": "Role", "typical_requirements": "..."}]
+}"""
+        else:
+            system_prompt = """You are a career research specialist helping candidates prepare for interviews.
 
 Research the company and provide ACTIONABLE insights for interview prep.
 
@@ -6717,8 +6744,9 @@ RESPOND ONLY WITH VALID JSON:
         msg = UserMessage(text=f"""Research this company for interview preparation:
 Company: {company_name}
 Target Role: {target_role}
+{'DEEP RESEARCH MODE: Include case studies, detailed news, and achievements' if is_deep else ''}
 
-Provide detailed, actionable insights.""")
+Provide {'extensive' if is_deep else 'detailed'}, actionable insights.""")
         
         response = await chat.send_message(msg)
         data = safe_parse_json(response, {
