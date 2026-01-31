@@ -6900,6 +6900,12 @@ async def generate_interview_questions(request: GenerateInterviewRequest):
                 "focus": "system design, architectural decisions, leadership, 'explain your thinking' questions",
                 "types": ["system_design", "leadership", "depth"],
                 "difficulty": "hard"
+            },
+            "custom": {
+                "name": request.custom_role_name or "Custom Round",
+                "focus": f"questions appropriate for a {request.custom_role_name or 'custom'} interview round",
+                "types": ["role_specific", "behavioral", "technical"],
+                "difficulty": "medium"
             }
         }
         
@@ -6910,6 +6916,8 @@ async def generate_interview_questions(request: GenerateInterviewRequest):
         for stage in stages_to_generate:
             config = stage_configs.get(stage, stage_configs["technical"])
             
+            job_desc_context = f"\n\nJOB DESCRIPTION:\n{request.job_description}" if request.job_description else ""
+            
             system_prompt = f"""You are an expert interviewer for {request.company_name} hiring a {request.target_role}.
 
 Generate {request.num_questions} interview questions for the {config['name']}.
@@ -6918,14 +6926,15 @@ FOCUS: {config['focus']}
 QUESTION TYPES: {', '.join(config['types'])}
 
 RULES:
-1. Questions MUST be based on the candidate's CV - reference specific projects, skills, gaps
-2. Include a mix of standard and CV-specific questions
-3. Questions should be appropriate for {request.company_name}'s culture and interview style
-4. For technical questions, relate to skills mentioned (or missing) in CV
-5. Be realistic - these should sound like real interview questions
+1. Questions MUST be based on the candidate's CV - reference specific projects, skills, experiences
+2. Include behavioral questions that relate to their past work
+3. For technical questions, relate to skills mentioned in CV and job description
+4. Consider their projects, achievements, and gaps
+5. Generate randomized questions - don't repeat same patterns
+6. Be realistic - these should sound like real interview questions
 
-CV HIGHLIGHTS TO REFERENCE:
-{cv_data.get('raw_text', '')[:5000]}
+CV HIGHLIGHTS:
+{cv_data.get('raw_text', '')[:5000]}{job_desc_context}
 
 RESPOND ONLY WITH VALID JSON:
 {{
@@ -6942,7 +6951,7 @@ RESPOND ONLY WITH VALID JSON:
 }}"""
             
             chat = get_chat_instance(system_prompt, model_type="fast")
-            msg = UserMessage(text=f"Generate interview questions for {stage} round")
+            msg = UserMessage(text=f"Generate diverse interview questions for {stage} round. Randomize and make unique.")
             response = await chat.send_message(msg)
             data = safe_parse_json(response, {"questions": []})
             
