@@ -210,6 +210,40 @@ const CVIntelligenceView = () => {
     }
   };
 
+  // New: Upload text/LaTeX
+  const uploadText = async () => {
+    if (!pastedText.trim()) {
+      toast.error("Please paste your CV text or LaTeX code");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/upload-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text_content: pastedText,
+          file_type: uploadMethod, // 'text' or 'latex'
+          filename: pastedFilename || "pasted_cv.txt"
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to process text');
+
+      const data = await response.json();
+      setCvData(data);
+      setActiveTab("editor");
+      setPastedText("");
+      toast.success("CV text processed successfully!");
+    } catch (error) {
+      console.error('Text upload error:', error);
+      toast.error("Failed to process CV text.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Section edit handler
   const handleSectionClick = (section, e) => {
     setEditPopup({ section });
