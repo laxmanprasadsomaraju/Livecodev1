@@ -6832,8 +6832,10 @@ class GenerateInterviewRequest(BaseModel):
     cv_id: str
     target_role: str
     company_name: str
-    stage: str = "all"  # 'hr', 'technical', 'hiring_manager', 'all'
+    stage: str = "all"  # 'hr', 'technical', 'hiring_manager', 'custom', 'all'
     num_questions: int = 5
+    custom_role_name: Optional[str] = None
+    job_description: Optional[str] = None
 
 class AnswerEvaluationRequest(BaseModel):
     session_id: str
