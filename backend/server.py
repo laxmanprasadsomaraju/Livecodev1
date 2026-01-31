@@ -6821,6 +6821,159 @@ async def get_interview_session_summary(session_id: str = Form(...)):
         logger.error(f"Session summary error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/cv/research-interviewers")
+async def research_interviewers(request: InterviewerResearchRequest):
+    """Research interviewers from LinkedIn (current employees only)"""
+    try:
+        if not request.interviewer_names or len(request.interviewer_names) == 0:
+            raise HTTPException(status_code=400, detail="Please provide at least one interviewer name")
+        
+        profiles = []
+        
+        for name in request.interviewer_names[:5]:  # Limit to 5 interviewers
+            system_prompt = f"""You are a professional researcher helping a candidate prepare for an interview.
+
+Research this interviewer who CURRENTLY works at {request.company_name}.
+
+IMPORTANT RULES:
+1. ONLY include information about people who CURRENTLY work at {request.company_name}
+2. If the person has left the company, say "May no longer be at {request.company_name}"
+3. Use only publicly available information (LinkedIn, company website, articles)
+4. If information is not publicly available, say "Not publicly available"
+5. Do NOT fabricate any information
+6. Focus on what would help in an interview
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "name": "{name}",
+    "current_role": "Their current title at {request.company_name}",
+    "linkedin_hint": "Search term to find them on LinkedIn",
+    "background": "Brief professional background summary",
+    "previous_experience": ["Previous Company 1 - Role", "Previous Company 2 - Role"],
+    "expertise_areas": ["Area 1", "Area 2"],
+    "interview_style_hints": ["What to expect from them based on their background"],
+    "talking_points": ["Topics they might be interested in discussing"]
+}}"""
+            
+            chat = get_chat_instance(system_prompt, model_type="fast")
+            msg = UserMessage(text=f"Research interviewer: {name} at {request.company_name}")
+            response = await chat.send_message(msg)
+            data = safe_parse_json(response, {
+                "name": name,
+                "current_role": "Not publicly available",
+                "linkedin_hint": f"{name} {request.company_name} LinkedIn",
+                "background": "Not publicly available",
+                "previous_experience": [],
+                "expertise_areas": [],
+                "interview_style_hints": [],
+                "talking_points": []
+            })
+            
+            profiles.append(InterviewerProfile(**data))
+        
+        return {
+            "company": request.company_name,
+            "interviewers": [p.model_dump() for p in profiles],
+            "research_note": "Information is based on publicly available data. Verify on LinkedIn before the interview."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Interviewer research error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/company-research-enhanced")
+async def enhanced_company_research(company_name: str = Form(...), target_role: str = Form(...)):
+    """Enhanced company research with case studies, news, achievements"""
+    try:
+        system_prompt = f"""You are a senior business analyst and career advisor helping a candidate prepare for an interview.
+
+Research {company_name} THOROUGHLY for someone interviewing for {target_role}.
+
+INCLUDE:
+1. Company overview and culture
+2. Recent news and press releases (last 6 months)
+3. Case studies showing their work/impact
+4. Recent achievements and milestones
+5. Technology stack (if relevant)
+6. Team structure insights
+7. Interview-specific tips
+
+RULES:
+1. Use only publicly available information
+2. If something is not available, say "Not publicly available"
+3. Be specific - include dates, numbers, names where possible
+4. Focus on what helps in interviews
+
+RESPOND ONLY WITH VALID JSON:
+{{
+    "company_name": "{company_name}",
+    "industry": "Industry sector",
+    "description": "Company description and mission",
+    "culture_insights": ["Culture insight 1", "Culture insight 2"],
+    "interview_tips": ["Specific tip 1", "Specific tip 2"],
+    "common_questions": ["Question they often ask 1", "Question 2"],
+    "values": ["Company value 1", "Value 2"],
+    "recent_news": [
+        {{"title": "News headline", "summary": "Brief summary", "date": "Month Year", "relevance": "Why it matters for interview"}}
+    ],
+    "case_studies": [
+        {{"title": "Case study title", "summary": "What they achieved", "key_takeaways": "What to learn from this"}}
+    ],
+    "recent_achievements": ["Achievement 1 with details", "Achievement 2"],
+    "tech_stack": ["Technology 1", "Technology 2"],
+    "team_structure": "Description of team organization if available",
+    "similar_roles": [
+        {{"title": "Related role", "typical_requirements": "What they usually look for"}}
+    ]
+}}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="pro")  # Use pro for deeper research
+        msg = UserMessage(text=f"Research {company_name} for {target_role} interview preparation")
+        response = await chat.send_message(msg)
+        data = safe_parse_json(response, {
+            "company_name": company_name,
+            "industry": "Not publicly available",
+            "description": "Not publicly available",
+            "culture_insights": [],
+            "interview_tips": [],
+            "common_questions": [],
+            "values": [],
+            "recent_news": [],
+            "case_studies": [],
+            "recent_achievements": [],
+            "tech_stack": [],
+            "team_structure": None,
+            "similar_roles": []
+        })
+        
+        return data
+        
+    except Exception as e:
+        logger.error(f"Enhanced company research error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/cv/common-roles")
+async def get_common_roles():
+    """Get a list of common tech roles for interview prep"""
+    return {
+        "roles": [
+            {"id": "swe", "title": "Software Engineer", "variants": ["Junior SWE", "Senior SWE", "Staff Engineer", "Principal Engineer"]},
+            {"id": "frontend", "title": "Frontend Engineer", "variants": ["React Developer", "Vue Developer", "Angular Developer"]},
+            {"id": "backend", "title": "Backend Engineer", "variants": ["Python Developer", "Java Developer", "Node.js Developer"]},
+            {"id": "fullstack", "title": "Full Stack Engineer", "variants": ["MERN Stack", "MEAN Stack", "Django + React"]},
+            {"id": "devops", "title": "DevOps Engineer", "variants": ["SRE", "Platform Engineer", "Cloud Engineer"]},
+            {"id": "data", "title": "Data Engineer", "variants": ["ETL Developer", "Data Platform Engineer"]},
+            {"id": "ml", "title": "ML Engineer", "variants": ["AI Engineer", "Deep Learning Engineer", "NLP Engineer"]},
+            {"id": "ds", "title": "Data Scientist", "variants": ["Research Scientist", "Applied Scientist"]},
+            {"id": "pm", "title": "Product Manager", "variants": ["Technical PM", "Growth PM", "Platform PM"]},
+            {"id": "em", "title": "Engineering Manager", "variants": ["Tech Lead", "Team Lead", "Director of Engineering"]},
+            {"id": "support", "title": "Technical Support Engineer", "variants": ["Solutions Engineer", "Customer Success Engineer"]},
+            {"id": "qa", "title": "QA Engineer", "variants": ["SDET", "Test Automation Engineer", "Quality Engineer"]}
+        ]
+    }
+
 # ============== PHASE 3: LEARNING ROADMAP ==============
 
 @api_router.post("/cv/learning-roadmap", response_model=LearningRoadmapResponse)
