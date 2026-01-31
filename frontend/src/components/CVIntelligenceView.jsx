@@ -992,6 +992,61 @@ const CVIntelligenceView = () => {
               </div>
             )}
 
+            {/* VIEW MODE TOGGLE */}
+            <div className="glass-light rounded-xl p-3 flex items-center justify-between">
+              <span className="text-white/60 text-sm">View Mode:</span>
+              <div className="flex gap-2 p-1 bg-white/5 rounded-lg">
+                <button
+                  onClick={() => setViewMode("sections")}
+                  className={`px-3 py-1 rounded text-sm transition-all ${
+                    viewMode === "sections" 
+                      ? "bg-indigo-500 text-white" 
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  Sections View
+                </button>
+                <button
+                  onClick={() => setViewMode("raw")}
+                  className={`px-3 py-1 rounded text-sm transition-all ${
+                    viewMode === "raw" 
+                      ? "bg-purple-500 text-white" 
+                      : "text-white/60 hover:text-white"
+                  }`}
+                >
+                  Raw Document
+                </button>
+              </div>
+            </div>
+
+            {/* RAW DOCUMENT VIEW */}
+            {viewMode === "raw" && (
+              <div className="glass-light rounded-xl p-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-2">Full CV Text</h3>
+                  <p className="text-white/50 text-sm">Select any text to get AI suggestions</p>
+                </div>
+                <div 
+                  className="p-6 rounded-lg bg-white/5 border border-white/10 whitespace-pre-wrap text-white/80 text-sm font-mono leading-relaxed select-text"
+                  onMouseUp={(e) => {
+                    const selection = window.getSelection();
+                    const text = selection.toString().trim();
+                    if (text) {
+                      setSelectedText(text);
+                      const range = selection.getRangeAt(0);
+                      const rect = range.getBoundingClientRect();
+                      setSelectionPosition({ x: rect.right, y: rect.bottom });
+                    }
+                  }}
+                >
+                  {cvData.raw_text}
+                </div>
+              </div>
+            )}
+
+            {/* SECTIONS VIEW (existing) */}
+            {viewMode === "sections" && (
+              <>
             {/* Sections */}
             {/* Section Management Header */}
             {selectedSections.length > 0 && (
