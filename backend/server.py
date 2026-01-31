@@ -6483,6 +6483,8 @@ async def refine_remotion_code(request: dict):
     try:
         current_code = request.get('current_code', '')
         user_feedback = request.get('user_feedback', '')
+        custom_key = request.get('custom_api_key', None)
+        provider = request.get('model_provider', 'gemini')
         
         system_prompt = """You are a Remotion code refinement expert.
         
@@ -6504,7 +6506,7 @@ RESPOND WITH JSON:
     "explanation": "Why these changes improve the video"
 }"""
         
-        chat = get_chat_instance(system_prompt, model_type="fast")
+        chat = get_remotion_chat_instance(system_prompt, custom_key, provider)
         msg = UserMessage(text=f"""Current code:
 {current_code}
 
