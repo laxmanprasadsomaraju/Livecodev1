@@ -1045,10 +1045,10 @@ const CVIntelligenceView = () => {
                 <button
                   onClick={async () => {
                     setViewMode("ai-compare");
-                    if (!aiImprovedCV) {
+                    if (!latexCode) {
                       setIsGeneratingAIView(true);
                       try {
-                        const response = await fetch(`${BACKEND_URL}/api/cv/ai-improve`, {
+                        const response = await fetch(`${BACKEND_URL}/api/cv/convert-to-latex`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
@@ -1057,9 +1057,12 @@ const CVIntelligenceView = () => {
                           })
                         });
                         const data = await response.json();
-                        setAiImprovedCV(data.improved_text);
+                        setLatexCode(data.latex_code || "");
+                        setLatexChanges(data.changes_made || []);
+                        setChangesSummary(data.summary || "");
                       } catch (error) {
-                        toast.error("Failed to generate AI view");
+                        console.error('LaTeX conversion error:', error);
+                        toast.error("Failed to convert to LaTeX");
                       } finally {
                         setIsGeneratingAIView(false);
                       }
