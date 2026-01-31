@@ -6118,6 +6118,8 @@ Preserve the structure but enhance the content. Return the improved CV text."""
         return {"improved_text": response}
         
     except Exception as e:
+        logger.error(f"AI improve CV error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/cv/convert-to-latex")
 async def convert_cv_to_latex(request: dict):
