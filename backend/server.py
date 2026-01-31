@@ -6520,6 +6520,155 @@ async def update_cv_section(cv_id: str = Form(...), section_id: str = Form(...),
         logger.error(f"Update section error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/cv/delete-section")
+async def delete_cv_section(cv_id: str = Form(...), section_id: str = Form(...)):
+    """Delete a section from the CV"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        sections = cv_data.get('sections', [])
+        original_count = len(sections)
+        sections = [s for s in sections if s['id'] != section_id]
+        
+        if len(sections) == original_count:
+            raise HTTPException(status_code=404, detail="Section not found")
+        
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": "Section deleted", "remaining_sections": len(sections)}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/add-text-to-section")
+async def add_text_to_section(cv_id: str = Form(...), section_id: str = Form(...), additional_text: str = Form(...), position: str = Form("end")):
+    """Add text to an existing section (at start or end)"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        sections = cv_data.get('sections', [])
+        updated = False
+        for section in sections:
+            if section['id'] == section_id:
+                current_content = section.get('content', '')
+                if position == "start":
+                    section['content'] = additional_text + "\n\n" + current_content
+                else:  # end
+                    section['content'] = current_content + "\n\n" + additional_text
+                section['raw_text'] = section['content']
+                updated = True
+                break
+        
+        if not updated:
+            raise HTTPException(status_code=404, detail="Section not found")
+        
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": f"Text added to {position} of section"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Add text error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/merge-sections")
+async def merge_sections(cv_id: str = Form(...), source_section_id: str = Form(...), target_section_id: str = Form(...)):
+    """Merge source section into target section and delete source"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        sections = cv_data.get('sections', [])
+        source_section = None
+        target_section = None
+        
+        for section in sections:
+            if section['id'] == source_section_id:
+                source_section = section
+            if section['id'] == target_section_id:
+                target_section = section
+        
+        if not source_section:
+            raise HTTPException(status_code=404, detail="Source section not found")
+        if not target_section:
+            raise HTTPException(status_code=404, detail="Target section not found")
+        
+        # Merge content
+        target_section['content'] = target_section.get('content', '') + "\n\n" + source_section.get('content', '')
+        target_section['raw_text'] = target_section['content']
+        
+        # Merge bullets
+        target_bullets = target_section.get('bullets', []) or []
+        source_bullets = source_section.get('bullets', []) or []
+        target_section['bullets'] = target_bullets + source_bullets
+        
+        # Remove source section
+        sections = [s for s in sections if s['id'] != source_section_id]
+        
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": "Sections merged successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Merge sections error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/add-section")
+async def add_new_section(cv_id: str = Form(...), section_type: str = Form(...), section_title: str = Form(...), content: str = Form("")):
+    """Add a new section to the CV"""
+    try:
+        cv_data = await cv_collection.find_one({"cv_id": cv_id})
+        if not cv_data:
+            raise HTTPException(status_code=404, detail="CV not found")
+        
+        sections = cv_data.get('sections', [])
+        
+        new_section = {
+            "id": f"section_{len(sections)}_{uuid.uuid4().hex[:8]}",
+            "type": section_type,
+            "title": section_title,
+            "content": content,
+            "raw_text": content,
+            "bullets": [],
+            "start_line": 0,
+            "end_line": 0
+        }
+        
+        sections.append(new_section)
+        
+        await cv_collection.update_one(
+            {"cv_id": cv_id},
+            {"$set": {"sections": sections}}
+        )
+        
+        return {"success": True, "message": "Section added", "section": new_section}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Add section error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============== PHASE 2: INTERVIEW SIMULATION & EVALUATION ==============
 
 class InterviewQuestion(BaseModel):
