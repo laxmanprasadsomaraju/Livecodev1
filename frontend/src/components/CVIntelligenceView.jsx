@@ -2041,10 +2041,10 @@ const CVIntelligenceView = () => {
       {editPopup && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => { setEditPopup(null); setEditResult(null); }}
+          onClick={() => { setEditPopup(null); setEditResult(null); setEditingContent(""); }}
         >
           <div 
-            className="w-full max-w-2xl mx-4 glass-heavy rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
+            className="w-full max-w-3xl mx-4 glass-heavy rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -2052,21 +2052,65 @@ const CVIntelligenceView = () => {
                 <Edit3 className="w-5 h-5 text-indigo-400" />
                 Edit: {editPopup.section?.title}
               </h3>
-              <button onClick={() => { setEditPopup(null); setEditResult(null); }} className="p-2 rounded-lg hover:bg-white/10">
+              <button onClick={() => { setEditPopup(null); setEditResult(null); setEditingContent(""); }} className="p-2 rounded-lg hover:bg-white/10">
                 <X className="w-5 h-5 text-white/60" />
               </button>
             </div>
 
-            <div className="mb-4 p-4 rounded-lg bg-white/5 border border-white/10 max-h-40 overflow-y-auto">
-              <span className="text-xs text-white/40 mb-2 block">Current Content</span>
-              <p className="text-sm text-white/70 whitespace-pre-wrap">
-                {editPopup.section?.content?.substring(0, 500)}
-                {editPopup.section?.content?.length > 500 && "..."}
-              </p>
+            {/* EDITABLE Current Content */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-white/60">Current Content (Editable)</span>
+                <span className="text-xs text-white/40">You can manually edit this if AI missed content</span>
+              </div>
+              <Textarea
+                value={editingContent || editPopup.section?.content || ""}
+                onChange={(e) => setEditingContent(e.target.value)}
+                placeholder="Edit your CV section content here..."
+                className="min-h-[300px] bg-white/5 border-white/10 text-white placeholder:text-white/30 font-mono text-sm"
+              />
+              <Button
+                onClick={async () => {
+                  // Save edited content directly
+                  if (editingContent.trim()) {
+                    const formData = new FormData();
+                    formData.append('cv_id', cvData.cv_id);
+                    formData.append('section_id', editPopup.section.id);
+                    formData.append('new_content', editingContent);
+                    
+                    const response = await fetch(`${BACKEND_URL}/api/cv/update-section`, {
+                      method: 'POST',
+                      body: formData
+                    });
+                    
+                    if (response.ok) {
+                      setCvData(prev => ({
+                        ...prev,
+                        sections: prev.sections.map(s => 
+                          s.id === editPopup.section.id 
+                            ? { ...s, content: editingContent, raw_text: editingContent }
+                            : s
+                        )
+                      }));
+                      toast.success("Content updated!");
+                      setEditPopup(null);
+                      setEditingContent("");
+                    }
+                  }
+                }}
+                disabled={!editingContent || editingContent === editPopup.section?.content}
+                variant="outline"
+                className="mt-2 border-white/20"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save Manual Changes
+              </Button>
             </div>
 
+            <div className="border-t border-white/10 my-4"></div>
+
             <div className="mb-4">
-              <label className="text-sm text-white/60 mb-2 block">What do you want to change and why?</label>
+              <label className="text-sm text-white/60 mb-2 block">Or use AI to edit</label>
               <Textarea
                 value={editInstruction}
                 onChange={(e) => setEditInstruction(e.target.value)}
@@ -2082,7 +2126,7 @@ const CVIntelligenceView = () => {
                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-500"
               >
                 {isEditing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                {isEditing ? "Processing..." : "Generate Edit"}
+                {isEditing ? "Processing..." : "Generate AI Edit"}
               </Button>
             ) : (
               <div className="space-y-4">
@@ -2100,7 +2144,7 @@ const CVIntelligenceView = () => {
 
                 <div className="flex gap-3">
                   <Button onClick={applyEdit} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
-                    <Save className="w-4 h-4 mr-2" />Apply Edit
+                    <Save className="w-4 h-4 mr-2" />Apply AI Edit
                   </Button>
                   <Button onClick={() => setEditResult(null)} variant="outline" className="flex-1 border-white/20 hover:bg-white/10">
                     <RefreshCw className="w-4 h-4 mr-2" />Try Again
