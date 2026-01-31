@@ -6046,17 +6046,23 @@ async def ai_parse_cv_sections(raw_text: str, file_type: str) -> Dict:
     """Use AI to intelligently parse CV sections"""
     system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract structured sections.
 
-RULES:
-1. Identify all major sections (Experience, Education, Skills, Projects, Summary, Certifications, etc.)
-2. For each section, extract:
-   - Section type (experience, education, skills, projects, summary, certifications, other)
-   - Section title as written in CV
-   - Full content of that section
-   - Individual bullet points if present
-   - Approximate line numbers (start and end)
-3. Also extract contact info (name, email, phone, linkedin, github, etc.)
-4. Be thorough - don't miss any sections
-5. Preserve exact formatting and text
+CRITICAL RULES:
+1. **KEEP RELATED ITEMS TOGETHER**: If there are multiple experiences, projects, or education entries - they ALL belong in ONE section!
+   - Example: 3 different jobs = 1 "Experience" section containing all 3 jobs
+   - Example: 5 projects = 1 "Projects" section containing all 5 projects
+   - Example: 2 degrees = 1 "Education" section containing both
+
+2. A section is defined by its HEADER (like "Work Experience", "Projects", "Education")
+   - Everything under that header until the next header belongs to that section
+   - DO NOT split items within a section into separate sections
+
+3. Section types: experience, education, skills, projects, summary, certifications, achievements, other
+
+4. Extract contact info from the top of CV (name, email, phone, linkedin, github, location)
+
+5. Capture the COMPLETE content of each section - do not truncate or summarize
+
+6. Preserve exact text and formatting
 
 RESPOND ONLY WITH VALID JSON:
 {
@@ -6072,17 +6078,17 @@ RESPOND ONLY WITH VALID JSON:
         {
             "type": "experience",
             "title": "Work Experience",
-            "content": "Full text of section",
+            "content": "FULL content including ALL jobs/roles under this section",
             "bullets": ["Bullet 1", "Bullet 2"],
             "start_line": 10,
-            "end_line": 30
+            "end_line": 50
         }
     ]
 }"""
     
     try:
-        chat = get_chat_instance(system_prompt, model_type="fast")
-        msg = UserMessage(text=f"Parse this CV:\n\n{raw_text[:15000]}")  # Limit for context
+        chat = get_chat_instance(system_prompt, model_type="pro")  # Use pro for better understanding
+        msg = UserMessage(text=f"Parse this CV - keep all items under each heading together as ONE section:\n\n{raw_text}")
         response = await chat.send_message(msg)
         
         return safe_parse_json(response, {
