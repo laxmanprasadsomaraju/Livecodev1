@@ -368,14 +368,42 @@ def safe_parse_json(response: str, default: dict = None) -> dict:
         return default
     try:
         clean_response = response.strip()
+        
+        # Handle markdown code blocks
         if clean_response.startswith("```"):
             lines = clean_response.split("\n")
-            lines = lines[1:]
+            lines = lines[1:]  # Skip first line with ```json or ```
             if lines and lines[-1].strip() == "```":
                 lines = lines[:-1]
             clean_response = "\n".join(lines)
-        return json.loads(clean_response)
-    except (json.JSONDecodeError, AttributeError):
+        
+        # Try direct JSON parse first
+        try:
+            return json.loads(clean_response)
+        except json.JSONDecodeError:
+            pass
+        
+        # Try to find JSON object in response
+        import re
+        # Look for JSON object pattern
+        json_match = re.search(r'\{[\s\S]*\}', clean_response)
+        if json_match:
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                pass
+        
+        # Try to find JSON array pattern
+        json_array_match = re.search(r'\[[\s\S]*\]', clean_response)
+        if json_array_match:
+            try:
+                return {"items": json.loads(json_array_match.group())}
+            except json.JSONDecodeError:
+                pass
+        
+        return default
+    except Exception as e:
+        logger.error(f"JSON parse error: {e}")
         return default
 
 def detect_language(filename: str) -> Optional[str]:
