@@ -5,11 +5,11 @@ import {
   Edit3, Save, X, Loader2, GraduationCap, Code, Award,
   User, Mail, Phone, Linkedin, Github, MapPin, BarChart3,
   TrendingUp, TrendingDown, Lightbulb, BookOpen, Star,
-  ArrowRight, RefreshCw, MessageSquare, Zap, Play, Pause,
-  Mic, MicOff, Send, Timer, CheckCircle2, XCircle, 
+  ArrowRight, RefreshCw, MessageSquare, Zap, Play,
+  Mic, MicOff, Send, Timer, CheckCircle2,
   Calendar, Route, ChevronDown, ChevronUp, PlayCircle,
-  StopCircle, Volume2, HelpCircle, Users, ArrowLeft,
-  Plus, RotateCcw, ExternalLink, Newspaper, Trophy
+  HelpCircle, Users, ArrowLeft, Plus, RotateCcw, 
+  Newspaper, Trophy, Info
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -59,8 +59,6 @@ const CVIntelligenceView = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [companyResearch, setCompanyResearch] = useState(null);
-  const [isResearching, setIsResearching] = useState(false);
   
   // Enhanced company research
   const [enhancedResearch, setEnhancedResearch] = useState(null);
@@ -135,20 +133,12 @@ const CVIntelligenceView = () => {
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
       recognitionInstance.lang = 'en-US';
-
       recognitionInstance.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join('');
+        const transcript = Array.from(event.results).map(result => result[0].transcript).join('');
         setAnswerText(transcript);
       };
-
       recognitionInstance.onend = () => setIsRecording(false);
-      recognitionInstance.onerror = () => {
-        setIsRecording(false);
-        toast.error("Voice recognition error");
-      };
-
+      recognitionInstance.onerror = () => { setIsRecording(false); toast.error("Voice recognition error"); };
       setRecognition(recognitionInstance);
     }
   }, []);
@@ -185,15 +175,11 @@ const CVIntelligenceView = () => {
       toast.error("Please upload a PDF, DOCX, LaTeX, or TXT file");
       return;
     }
-
     setIsUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch(`${BACKEND_URL}/api/cv/upload`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await fetch(`${BACKEND_URL}/api/cv/upload`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Failed to upload CV');
       const data = await response.json();
       setCvData(data);
@@ -207,7 +193,7 @@ const CVIntelligenceView = () => {
   };
 
   // Section edit handlers
-  const handleSectionClick = (section, e) => {
+  const handleSectionClick = (section) => {
     setEditPopup({ section });
     setSelectedSection(section);
     setEditInstruction("");
@@ -246,17 +232,12 @@ const CVIntelligenceView = () => {
       formData.append('cv_id', cvData.cv_id);
       formData.append('section_id', selectedSection.id);
       formData.append('new_content', editResult.edited_text);
-      const response = await fetch(`${BACKEND_URL}/api/cv/update-section`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await fetch(`${BACKEND_URL}/api/cv/update-section`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Update failed');
       setCvData(prev => ({
         ...prev,
         sections: prev.sections.map(s => 
-          s.id === selectedSection.id 
-            ? { ...s, content: editResult.edited_text, raw_text: editResult.edited_text }
-            : s
+          s.id === selectedSection.id ? { ...s, content: editResult.edited_text, raw_text: editResult.edited_text } : s
         )
       }));
       setEditPopup(null);
@@ -300,20 +281,14 @@ const CVIntelligenceView = () => {
 
   // Enhanced company research handler
   const runEnhancedResearch = async () => {
-    if (!companyName.trim()) {
-      toast.error("Please enter company name");
-      return;
-    }
+    if (!companyName.trim()) { toast.error("Please enter company name"); return; }
     setIsEnhancedResearching(true);
     setEnhancedResearch(null);
     try {
       const formData = new FormData();
       formData.append('company_name', companyName);
       formData.append('target_role', targetRole || 'General');
-      const response = await fetch(`${BACKEND_URL}/api/cv/company-research-enhanced`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await fetch(`${BACKEND_URL}/api/cv/company-research-enhanced`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Research failed');
       const data = await response.json();
       setEnhancedResearch(data);
@@ -328,24 +303,15 @@ const CVIntelligenceView = () => {
   // Interviewer research handler
   const researchInterviewers = async () => {
     const names = interviewerNames.split(',').map(n => n.trim()).filter(n => n);
-    if (names.length === 0) {
-      toast.error("Please enter at least one interviewer name");
-      return;
-    }
-    if (!companyName.trim()) {
-      toast.error("Please enter company name first");
-      return;
-    }
+    if (names.length === 0) { toast.error("Please enter at least one interviewer name"); return; }
+    if (!companyName.trim()) { toast.error("Please enter company name first"); return; }
     setIsResearchingInterviewers(true);
     setInterviewerProfiles(null);
     try {
       const response = await fetch(`${BACKEND_URL}/api/cv/research-interviewers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company_name: companyName,
-          interviewer_names: names
-        })
+        body: JSON.stringify({ company_name: companyName, interviewer_names: names })
       });
       if (!response.ok) throw new Error('Research failed');
       const data = await response.json();
@@ -367,15 +333,15 @@ const CVIntelligenceView = () => {
 
   const generateInterview = async (stage = "all", refresh = false) => {
     const effectiveRole = getEffectiveRole();
-    if (!effectiveRole.trim() || !companyName.trim()) {
-      toast.error("Please select or enter a role and company");
-      return;
-    }
+    if (!effectiveRole.trim()) { toast.error("Please select or enter a role"); return; }
+    if (!companyName.trim()) { toast.error("Please enter company name in Analysis tab"); return; }
+    
     setIsGeneratingInterview(true);
     setInterviewSession(null);
     setCurrentQuestionIndex(0);
     setCurrentEvaluation(null);
     setAnswerText("");
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/cv/interview/generate`, {
         method: 'POST',
@@ -393,7 +359,7 @@ const CVIntelligenceView = () => {
       if (!response.ok) throw new Error('Failed to generate interview');
       const data = await response.json();
       setInterviewSession(data);
-      toast.success(`${refresh ? 'New' : ''} Interview generated with ${data.questions?.length || 0} questions!`);
+      toast.success(`${refresh ? 'New ' : ''}Interview generated with ${data.questions?.length || 0} questions!`);
     } catch (error) {
       toast.error("Failed to generate interview questions");
     } finally {
@@ -418,24 +384,12 @@ const CVIntelligenceView = () => {
   };
 
   const toggleRecording = () => {
-    if (!recognition) {
-      toast.error('Voice input not supported in this browser');
-      return;
-    }
-    if (isRecording) {
-      recognition.stop();
-    } else {
-      recognition.start();
-      setIsRecording(true);
-      toast.info('Listening... speak your answer');
-    }
+    if (!recognition) { toast.error('Voice input not supported'); return; }
+    if (isRecording) { recognition.stop(); } else { recognition.start(); setIsRecording(true); toast.info('Listening...'); }
   };
 
   const submitAnswer = async () => {
-    if (!answerText.trim()) {
-      toast.error("Please provide an answer");
-      return;
-    }
+    if (!answerText.trim()) { toast.error("Please provide an answer"); return; }
     setIsTimerRunning(false);
     setIsEvaluating(true);
     try {
@@ -480,22 +434,16 @@ const CVIntelligenceView = () => {
 
   // If I Were You handler
   const getIfIWereYou = async () => {
-    if (!ifIWereYouQuestion.trim()) {
-      toast.error("Please enter a question");
-      return;
-    }
+    if (!ifIWereYouQuestion.trim()) { toast.error("Please enter a question"); return; }
     setIsGettingModelAnswer(true);
     setIfIWereYouResult(null);
     try {
       const response = await fetch(`${BACKEND_URL}/api/cv/interview/if-i-were-you`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cv_id: cvData.cv_id,
-          question: ifIWereYouQuestion
-        })
+        body: JSON.stringify({ cv_id: cvData.cv_id, question: ifIWereYouQuestion })
       });
-      if (!response.ok) throw new Error('Failed to get model answer');
+      if (!response.ok) throw new Error('Failed');
       const data = await response.json();
       setIfIWereYouResult(data);
       toast.success("Model answer ready!");
@@ -509,28 +457,21 @@ const CVIntelligenceView = () => {
   // Learning Roadmap handler
   const generateRoadmap = async () => {
     const effectiveRole = getEffectiveRole() || targetRole;
-    if (!effectiveRole.trim()) {
-      toast.error("Please enter target role in the Analysis tab first");
-      return;
-    }
+    if (!effectiveRole.trim()) { toast.error("Please enter target role in Analysis tab"); return; }
     setIsGeneratingRoadmap(true);
     setRoadmap(null);
     try {
       const response = await fetch(`${BACKEND_URL}/api/cv/learning-roadmap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cv_id: cvData.cv_id,
-          target_role: effectiveRole,
-          timeframe_days: roadmapTimeframe
-        })
+        body: JSON.stringify({ cv_id: cvData.cv_id, target_role: effectiveRole, timeframe_days: roadmapTimeframe })
       });
-      if (!response.ok) throw new Error('Failed to generate roadmap');
+      if (!response.ok) throw new Error('Failed');
       const data = await response.json();
       setRoadmap(data);
-      toast.success(`${roadmapTimeframe}-day learning roadmap ready!`);
+      toast.success(`${roadmapTimeframe}-day roadmap ready!`);
     } catch (error) {
-      toast.error("Failed to generate learning roadmap");
+      toast.error("Failed to generate roadmap");
     } finally {
       setIsGeneratingRoadmap(false);
     }
@@ -557,8 +498,17 @@ const CVIntelligenceView = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const toggleDayExpand = (day) => {
-    setExpandedDays(prev => ({ ...prev, [day]: !prev[day] }));
+  const toggleDayExpand = (day) => setExpandedDays(prev => ({ ...prev, [day]: !prev[day] }));
+
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);
+    setCustomRole("");
+    setShowCustomRoleInput(false);
+  };
+
+  const handleCustomRoleClick = () => {
+    setShowCustomRoleInput(true);
+    setSelectedRole("");
   };
 
   return (
@@ -573,7 +523,7 @@ const CVIntelligenceView = () => {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
               CV Intelligence & Interview Mentor
             </h1>
-            <p className="text-white/60 text-sm">Your AI career companion - analyze, prepare, practice, succeed</p>
+            <p className="text-white/60 text-sm">Your AI career companion - analyze CV, practice interviews, get personalized coaching</p>
           </div>
         </div>
       </div>
@@ -581,17 +531,17 @@ const CVIntelligenceView = () => {
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-6 p-1 glass-light rounded-xl w-fit flex-wrap">
         {[
-          { id: "upload", label: "Upload", icon: Upload },
+          { id: "upload", label: "Upload CV", icon: Upload },
           { id: "editor", label: "CV Editor", icon: Edit3, disabled: !cvData },
-          { id: "analyze", label: "Analysis", icon: Target, disabled: !cvData },
-          { id: "interview", label: "Interview", icon: Mic, disabled: !cvData },
-          { id: "roadmap", label: "Learning", icon: Route, disabled: !cvData }
+          { id: "analyze", label: "Job Analysis", icon: Target, disabled: !cvData },
+          { id: "interview", label: "Interview Prep", icon: Mic, disabled: !cvData },
+          { id: "roadmap", label: "Learning Plan", icon: Route, disabled: !cvData }
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => !tab.disabled && setActiveTab(tab.id)}
             disabled={tab.disabled}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer
               ${activeTab === tab.id ? "bg-gradient-to-r from-indigo-500/30 to-purple-500/30 text-white" 
                 : tab.disabled ? "text-white/30 cursor-not-allowed" : "text-white/60 hover:text-white hover:bg-white/5"}`}
           >
@@ -601,7 +551,7 @@ const CVIntelligenceView = () => {
         ))}
       </div>
 
-      {/* Upload Tab */}
+      {/* ===== UPLOAD TAB ===== */}
       {activeTab === "upload" && (
         <div className="space-y-6">
           <div
@@ -618,6 +568,7 @@ const CVIntelligenceView = () => {
                 <>
                   <Loader2 className="w-16 h-16 text-indigo-400 animate-spin mb-4" />
                   <p className="text-lg font-medium text-white">Processing your CV...</p>
+                  <p className="text-sm text-white/50 mt-2">Extracting text and parsing sections</p>
                 </>
               ) : (
                 <>
@@ -626,15 +577,38 @@ const CVIntelligenceView = () => {
                   </div>
                   <p className="text-lg font-medium text-white mb-2">Drop your CV here or click to browse</p>
                   <p className="text-sm text-white/50">Supports PDF, DOCX, LaTeX (.tex), and TXT files</p>
+                  <div className="flex gap-2 mt-4">
+                    {["PDF", "DOCX", "LaTeX", "TXT"].map(type => (
+                      <span key={type} className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs">{type}</span>
+                    ))}
+                  </div>
                 </>
               )}
             </div>
             <input ref={fileInputRef} type="file" accept=".pdf,.docx,.tex,.txt,.latex" onChange={handleFileSelect} className="hidden" />
           </div>
+
+          {/* Features Overview */}
+          <div className="grid md:grid-cols-4 gap-4">
+            {[
+              { icon: Edit3, title: "Smart CV Editing", desc: "AI-powered section editing with formatting preservation", color: "blue" },
+              { icon: Target, title: "Gap Analysis", desc: "Compare CV against job requirements with actionable tips", color: "green" },
+              { icon: Mic, title: "Interview Prep", desc: "Practice with AI-generated questions & get scored", color: "purple" },
+              { icon: Route, title: "Learning Roadmap", desc: "Time-boxed prep plans (7/14/30 days)", color: "orange" }
+            ].map((feature, idx) => (
+              <div key={idx} className="glass-light rounded-xl p-6 hover:bg-white/5 transition-colors">
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-${feature.color}-500/20 to-${feature.color}-600/20 flex items-center justify-center mb-3`}>
+                  <feature.icon className={`w-5 h-5 text-${feature.color}-400`} />
+                </div>
+                <h3 className="font-semibold text-white mb-2">{feature.title}</h3>
+                <p className="text-sm text-white/60">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Editor Tab */}
+      {/* ===== EDITOR TAB ===== */}
       {activeTab === "editor" && cvData && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
@@ -659,7 +633,7 @@ const CVIntelligenceView = () => {
               const Icon = SECTION_ICONS[section.type] || FileText;
               const colorClass = SECTION_COLORS[section.type] || SECTION_COLORS.other;
               return (
-                <div key={section.id} onClick={(e) => handleSectionClick(section, e)}
+                <div key={section.id} onClick={() => handleSectionClick(section)}
                   className={`glass-light rounded-xl p-6 cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-indigo-500/50 group
                     ${selectedSection?.id === section.id ? "ring-2 ring-indigo-500" : ""}`}>
                   <div className="flex items-center justify-between mb-3">
@@ -683,6 +657,21 @@ const CVIntelligenceView = () => {
           </div>
           <div className="space-y-4">
             <div className="glass-light rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-400" />Document Info
+              </h3>
+              <div className="space-y-3 text-sm">
+                {[{ label: "Filename", value: cvData.filename }, { label: "Type", value: cvData.file_type?.toUpperCase() },
+                  { label: "Lines", value: cvData.total_lines }, { label: "Sections", value: cvData.sections?.length || 0 }
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between">
+                    <span className="text-white/50">{label}</span>
+                    <span className="text-white/80 truncate ml-2">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 <Button onClick={() => setActiveTab("analyze")} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
@@ -697,10 +686,11 @@ const CVIntelligenceView = () => {
         </div>
       )}
 
-      {/* Analyze Tab */}
+      {/* ===== ANALYZE TAB ===== */}
       {activeTab === "analyze" && cvData && (
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="space-y-4">
+            {/* Target Position */}
             <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Target className="w-5 h-5 text-indigo-400" />Target Position
@@ -719,56 +709,56 @@ const CVIntelligenceView = () => {
                     className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
                 </div>
                 <div>
-                  <label className="text-sm text-white/60 mb-1 block">Job Description (Optional)</label>
+                  <label className="text-sm text-white/60 mb-1 block">Job Description (Optional - for better analysis)</label>
                   <Textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)}
-                    placeholder="Paste the job description here..."
+                    placeholder="Paste the job description here for more accurate gap analysis..."
                     className="min-h-[100px] bg-white/5 border-white/10 text-white placeholder:text-white/30" />
                 </div>
                 <Button onClick={runAnalysis} disabled={isAnalyzing || !targetRole.trim() || !companyName.trim()}
-                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
-                  {isAnalyzing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  {isAnalyzing ? "Analyzing..." : "Analyze CV"}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer">
+                  {isAnalyzing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analyzing...</> : <><Sparkles className="w-4 h-4 mr-2" />Analyze CV</>}
                 </Button>
               </div>
             </div>
 
-            {/* Enhanced Company Research */}
+            {/* Company Deep Research */}
             <div className="glass-light rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-purple-400" />Company Deep Research
               </h3>
-              <p className="text-white/50 text-sm mb-3">Get case studies, news, achievements & more</p>
+              <p className="text-white/50 text-sm mb-3">Get case studies, recent news, achievements & interview tips</p>
               <Button onClick={runEnhancedResearch} disabled={isEnhancedResearching || !companyName.trim()}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500">
-                {isEnhancedResearching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-                {isEnhancedResearching ? "Researching..." : `Deep Research ${companyName || "Company"}`}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 cursor-pointer">
+                {isEnhancedResearching ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Researching...</> : <><Search className="w-4 h-4 mr-2" />Research {companyName || "Company"}</>}
               </Button>
             </div>
 
             {/* Interviewer Research */}
             <div className="glass-light rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-400" />Research Interviewers
+              <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <Users className="w-5 h-5 text-cyan-400" />Research Your Interviewers
               </h3>
-              <p className="text-white/50 text-sm mb-3">Enter interviewer names (comma separated)</p>
+              <div className="flex items-start gap-2 mb-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <p className="text-amber-200/80 text-xs">AI research may not always find exact matches. Use the LinkedIn search links to verify and get more details.</p>
+              </div>
               <Textarea value={interviewerNames} onChange={(e) => setInterviewerNames(e.target.value)}
-                placeholder="e.g., John Smith, Sarah Johnson"
+                placeholder="Enter names separated by commas (e.g., John Smith, Sarah Johnson)"
                 className="min-h-[60px] bg-white/5 border-white/10 text-white placeholder:text-white/30 mb-3" />
-              <Button onClick={researchInterviewers} disabled={isResearchingInterviewers || !interviewerNames.trim()}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500">
-                {isResearchingInterviewers ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Linkedin className="w-4 h-4 mr-2" />}
-                Research on LinkedIn
+              <Button onClick={researchInterviewers} disabled={isResearchingInterviewers || !interviewerNames.trim() || !companyName.trim()}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 cursor-pointer">
+                {isResearchingInterviewers ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Researching...</> : <><Linkedin className="w-4 h-4 mr-2" />Research Interviewers</>}
               </Button>
             </div>
           </div>
 
+          {/* Results Column */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Analysis Results */}
             {!analysisResult && !isAnalyzing && !enhancedResearch && !interviewerProfiles && (
               <div className="glass-light rounded-xl p-12 flex flex-col items-center justify-center text-center">
                 <BarChart3 className="w-16 h-16 text-indigo-400 mb-4" />
-                <h3 className="text-lg font-semibold text-white mb-2">No Analysis Yet</h3>
-                <p className="text-white/50">Enter target role and company, then click "Analyze CV"</p>
+                <h3 className="text-lg font-semibold text-white mb-2">Ready to Analyze Your CV</h3>
+                <p className="text-white/50 max-w-md">Enter your target role and company name, then click "Analyze CV" to get detailed gap analysis, skill recommendations, and mentor advice.</p>
               </div>
             )}
 
@@ -776,14 +766,16 @@ const CVIntelligenceView = () => {
               <div className="glass-light rounded-xl p-12 flex flex-col items-center justify-center text-center">
                 <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">Analyzing Your CV...</h3>
+                <p className="text-white/50">Comparing against job requirements and generating insights</p>
               </div>
             )}
 
             {analysisResult && (
               <div className="space-y-4">
+                {/* Match Score */}
                 <div className={`glass-light rounded-xl p-6 bg-gradient-to-br ${getScoreBackground(analysisResult.match_score)}`}>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Match Score</h3>
+                    <h3 className="text-lg font-semibold text-white">Match Score for {targetRole} at {companyName}</h3>
                     <span className={`text-4xl font-bold ${getScoreColor(analysisResult.match_score)}`}>
                       {analysisResult.match_score}%
                     </span>
@@ -797,6 +789,7 @@ const CVIntelligenceView = () => {
                   </div>
                 </div>
 
+                {/* Strengths */}
                 {analysisResult.strengths?.length > 0 && (
                   <div className="glass-light rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -810,10 +803,26 @@ const CVIntelligenceView = () => {
                   </div>
                 )}
 
+                {/* Missing Keywords */}
+                {analysisResult.missing_keywords?.length > 0 && (
+                  <div className="glass-light rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-yellow-400" />Missing Keywords (for ATS)
+                    </h3>
+                    <p className="text-white/50 text-sm mb-3">Add these keywords to your CV to improve ATS matching:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {analysisResult.missing_keywords.map((k, idx) => (
+                        <span key={idx} className="px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-sm">{k}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skill Gaps */}
                 {analysisResult.skill_gaps?.length > 0 && (
                   <div className="glass-light rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-orange-400" />Skill Gaps
+                      <TrendingDown className="w-5 h-5 text-orange-400" />Skill Gaps to Address
                     </h3>
                     <div className="space-y-3">
                       {analysisResult.skill_gaps.map((gap, idx) => (
@@ -825,17 +834,94 @@ const CVIntelligenceView = () => {
                               gap.priority === 'high' ? 'bg-orange-500/20 text-orange-300' : 'bg-yellow-500/20 text-yellow-300'
                             }`}>{gap.priority}</span>
                           </div>
-                          <p className="text-sm text-white/60">{gap.how_to_learn}</p>
+                          <p className="text-sm text-white/70">{gap.how_to_learn}</p>
+                          {gap.time_needed && (
+                            <div className="flex items-center gap-1 mt-2 text-xs text-white/50">
+                              <Clock className="w-3 h-3" />Estimated: {gap.time_needed}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
+                {/* Experience Gaps */}
+                {analysisResult.experience_gaps?.length > 0 && (
+                  <div className="glass-light rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-blue-400" />Experience Gaps
+                    </h3>
+                    <div className="space-y-3">
+                      {analysisResult.experience_gaps.map((gap, idx) => (
+                        <div key={idx} className="p-4 rounded-lg bg-white/5 border border-white/10">
+                          <p className="font-medium text-white mb-2">{gap.gap}</p>
+                          <p className="text-sm text-white/70">{gap.advice}</p>
+                          {gap.alternative && (
+                            <p className="text-sm text-indigo-300 mt-2">
+                              <ArrowRight className="w-3 h-3 inline mr-1" />Alternative: {gap.alternative}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                {analysisResult.recommendations?.length > 0 && (
+                  <div className="glass-light rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-amber-400" />Recommendations
+                    </h3>
+                    <div className="space-y-2">
+                      {analysisResult.recommendations.map((rec, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-white/80">
+                          <ChevronRight className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm">{rec.suggestion || rec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Honest Additions vs Do Not Fake */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  {analysisResult.honest_additions?.length > 0 && (
+                    <div className="glass-light rounded-xl p-6 bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                      <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" />You CAN Truthfully Add
+                      </h3>
+                      <ul className="space-y-2">
+                        {analysisResult.honest_additions.map((item, idx) => (
+                          <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                            <ChevronRight className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />{item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {analysisResult.do_not_fake?.length > 0 && (
+                    <div className="glass-light rounded-xl p-6 bg-gradient-to-br from-red-500/10 to-rose-500/10 border border-red-500/20">
+                      <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                        <X className="w-5 h-5 text-red-400" />Do NOT Fake These
+                      </h3>
+                      <ul className="space-y-2">
+                        {analysisResult.do_not_fake.map((item, idx) => (
+                          <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                            <X className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />{item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mentor Advice */}
                 {analysisResult.mentor_advice && analysisResult.mentor_advice !== "Unable to analyze CV" && (
                   <div className="glass-light rounded-xl p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
                     <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-indigo-400" />Mentor Advice
+                      <MessageSquare className="w-5 h-5 text-indigo-400" />Career Mentor Advice
                     </h3>
                     <div className="text-white/80 prose prose-invert prose-sm max-w-none">
                       <ReactMarkdown>{analysisResult.mentor_advice}</ReactMarkdown>
@@ -845,11 +931,11 @@ const CVIntelligenceView = () => {
               </div>
             )}
 
-            {/* Enhanced Company Research Results */}
+            {/* Enhanced Company Research */}
             {enhancedResearch && (
               <div className="glass-light rounded-xl p-6 space-y-6">
                 <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <Building2 className="w-6 h-6 text-purple-400" />{enhancedResearch.company_name}
+                  <Building2 className="w-6 h-6 text-purple-400" />{enhancedResearch.company_name} - Deep Research
                 </h3>
                 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -882,7 +968,7 @@ const CVIntelligenceView = () => {
                             <span className="text-white/40 text-xs">{news.date}</span>
                           </div>
                           <p className="text-white/60 text-xs mt-1">{news.summary}</p>
-                          {news.relevance && <p className="text-cyan-300 text-xs mt-1">💡 {news.relevance}</p>}
+                          {news.relevance && <p className="text-cyan-300 text-xs mt-1">💡 Interview tip: {news.relevance}</p>}
                         </div>
                       ))}
                     </div>
@@ -942,9 +1028,11 @@ const CVIntelligenceView = () => {
             {interviewerProfiles && (
               <div className="glass-light rounded-xl p-6">
                 <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-cyan-400" />Interviewer Profiles
+                  <Users className="w-6 h-6 text-cyan-400" />Interviewer Research Results
                 </h3>
-                <p className="text-white/50 text-xs mb-4">{interviewerProfiles.research_note}</p>
+                <p className="text-white/50 text-xs mb-4 flex items-center gap-1">
+                  <Info className="w-3 h-3" />{interviewerProfiles.research_note}
+                </p>
                 <div className="space-y-4">
                   {interviewerProfiles.interviewers?.map((profile, idx) => (
                     <div key={idx} className="p-4 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
@@ -952,14 +1040,15 @@ const CVIntelligenceView = () => {
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
                           <User className="w-6 h-6 text-white" />
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-white font-semibold">{profile.name}</h4>
                           <p className="text-white/60 text-sm">{profile.current_role}</p>
                         </div>
-                        <a href={`https://linkedin.com/search/results/all/?keywords=${encodeURIComponent(profile.linkedin_hint || profile.name)}`}
+                        <a href={`https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(profile.linkedin_hint || profile.name + ' ' + companyName)}`}
                           target="_blank" rel="noopener noreferrer"
-                          className="ml-auto p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors">
+                          className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors flex items-center gap-1">
                           <Linkedin className="w-4 h-4 text-blue-400" />
+                          <span className="text-blue-300 text-xs">Search</span>
                         </a>
                       </div>
                       {profile.background && <p className="text-white/70 text-sm mb-3">{profile.background}</p>}
@@ -975,7 +1064,7 @@ const CVIntelligenceView = () => {
                       )}
                       {profile.talking_points?.length > 0 && (
                         <div>
-                          <span className="text-white/50 text-xs">Potential Talking Points</span>
+                          <span className="text-white/50 text-xs">Topics They Might Discuss</span>
                           <ul className="mt-1 space-y-1">
                             {profile.talking_points.map((tp, i) => (
                               <li key={i} className="text-white/60 text-xs flex items-start gap-1">
@@ -994,99 +1083,109 @@ const CVIntelligenceView = () => {
         </div>
       )}
 
-      {/* Interview Tab */}
+      {/* ===== INTERVIEW TAB ===== */}
       {activeTab === "interview" && cvData && (
         <div className="space-y-6">
-          {/* Generate Interview Section */}
-          {!interviewSession && (
+          {!interviewSession ? (
             <div className="glass-light rounded-xl p-8">
               <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
                 <Mic className="w-6 h-6 text-indigo-400" />Interview Simulation
               </h3>
               
-              {!targetRole && !companyName ? (
+              {(!targetRole && !companyName) ? (
                 <div className="text-center py-8">
                   <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
                   <p className="text-white/80 mb-4">Please set your target role and company in the Analysis tab first</p>
-                  <Button onClick={() => setActiveTab("analyze")} className="bg-gradient-to-r from-indigo-500 to-purple-500">
+                  <Button onClick={() => setActiveTab("analyze")} className="bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer">
                     <Target className="w-4 h-4 mr-2" />Go to Analysis
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* Role Selection */}
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <label className="text-white/60 text-sm mb-3 block">Select or Enter Interview Role</label>
+                  <div className="p-5 rounded-xl bg-white/5 border border-white/10">
+                    <label className="text-white font-medium mb-4 block">1. Select or Enter Interview Role</label>
                     
-                    {/* Preset Roles */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {commonRoles.slice(0, 6).map(role => (
-                        <button key={role.id} onClick={() => { setSelectedRole(role.title); setCustomRole(""); setShowCustomRoleInput(false); }}
-                          className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                            selectedRole === role.title ? "bg-indigo-500 text-white" : "bg-white/10 text-white/70 hover:bg-white/20"
+                    {/* Preset Role Buttons */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {commonRoles.map(role => (
+                        <button key={role.id} onClick={() => handleRoleSelect(role.title)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                            selectedRole === role.title 
+                              ? "bg-indigo-500 text-white ring-2 ring-indigo-400" 
+                              : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
                           }`}>
                           {role.title}
                         </button>
                       ))}
-                      <button onClick={() => { setShowCustomRoleInput(true); setSelectedRole(""); }}
-                        className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1 ${
-                          showCustomRoleInput ? "bg-indigo-500 text-white" : "bg-white/10 text-white/70 hover:bg-white/20"
+                      <button onClick={handleCustomRoleClick}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                          showCustomRoleInput 
+                            ? "bg-purple-500 text-white ring-2 ring-purple-400" 
+                            : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
                         }`}>
-                        <Plus className="w-3 h-3" />Custom Role
+                        <Plus className="w-4 h-4" />Custom Role
                       </button>
                     </div>
 
                     {/* Custom Role Input */}
                     {showCustomRoleInput && (
-                      <input type="text" value={customRole} onChange={(e) => setCustomRole(e.target.value)}
-                        placeholder="Enter custom role (e.g., AI Product Manager)"
-                        className="w-full px-4 py-2 rounded-lg bg-white/5 border border-indigo-500/50 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                      <div className="mb-4">
+                        <input type="text" value={customRole} onChange={(e) => setCustomRole(e.target.value)}
+                          placeholder="Enter custom role (e.g., AI Product Manager, CEO)"
+                          className="w-full px-4 py-3 rounded-lg bg-white/10 border border-purple-500/50 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50" />
+                      </div>
                     )}
 
                     {/* Current Selection Display */}
-                    <div className="mt-3 p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                      <span className="text-white/50 text-xs">Preparing interview for:</span>
-                      <p className="text-white font-medium">{getEffectiveRole() || targetRole} at {companyName}</p>
+                    <div className="p-4 rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30">
+                      <span className="text-white/60 text-sm">Preparing interview for:</span>
+                      <p className="text-white font-semibold text-lg">{getEffectiveRole() || targetRole || "Select a role above"} at {companyName}</p>
                     </div>
                   </div>
                   
-                  {/* Stage Selection */}
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {Object.entries(STAGE_INFO).map(([stage, info]) => (
-                      <button key={stage} onClick={() => generateInterview(stage)}
-                        disabled={isGeneratingInterview}
-                        className={`p-6 rounded-xl border border-white/10 hover:border-white/20 transition-all text-left ${info.bg}`}>
-                        <info.icon className={`w-8 h-8 ${info.color} mb-3`} />
-                        <h4 className="text-white font-semibold mb-1">{info.name}</h4>
-                        <p className="text-white/50 text-sm">Practice this round only</p>
-                      </button>
-                    ))}
+                  {/* Interview Stage Selection */}
+                  <div className="p-5 rounded-xl bg-white/5 border border-white/10">
+                    <label className="text-white font-medium mb-4 block">2. Choose Interview Round</label>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      {Object.entries(STAGE_INFO).map(([stage, info]) => (
+                        <button key={stage} onClick={() => generateInterview(stage)}
+                          disabled={isGeneratingInterview || !getEffectiveRole()}
+                          className={`p-6 rounded-xl border border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${info.bg}`}>
+                          <info.icon className={`w-8 h-8 ${info.color} mb-3`} />
+                          <h4 className="text-white font-semibold mb-1">{info.name}</h4>
+                          <p className="text-white/50 text-sm">Practice only this round</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   
-                  <Button onClick={() => generateInterview("all")} disabled={isGeneratingInterview}
-                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 py-6 text-lg">
-                    {isGeneratingInterview ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <PlayCircle className="w-5 h-5 mr-2" />}
-                    {isGeneratingInterview ? "Generating Questions..." : "Start Full Interview (All Rounds)"}
+                  {/* Full Interview Button */}
+                  <Button onClick={() => generateInterview("all")} 
+                    disabled={isGeneratingInterview || !getEffectiveRole()}
+                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 py-6 text-lg cursor-pointer disabled:opacity-50">
+                    {isGeneratingInterview ? (
+                      <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Generating Questions...</>
+                    ) : (
+                      <><PlayCircle className="w-5 h-5 mr-2" />Start Full Interview (All 3 Rounds)</>
+                    )}
                   </Button>
                 </div>
               )}
             </div>
-          )}
-
-          {/* Interview in Progress */}
-          {interviewSession && interviewSession.questions?.length > 0 && (
+          ) : (
+            /* Interview In Progress */
             <div className="grid lg:grid-cols-3 gap-6">
-              {/* Main Interview Area */}
               <div className="lg:col-span-2 space-y-4">
-                {/* Back / Change Role Button */}
+                {/* Navigation Buttons */}
                 <div className="flex items-center justify-between">
-                  <Button onClick={resetInterview} variant="outline" className="border-white/20 hover:bg-white/10">
+                  <Button onClick={resetInterview} variant="outline" className="border-white/20 hover:bg-white/10 cursor-pointer">
                     <ArrowLeft className="w-4 h-4 mr-2" />Change Role / Back
                   </Button>
                   <Button onClick={() => generateInterview(interviewSession.current_stage || "all", true)}
-                    disabled={isGeneratingInterview} variant="outline" className="border-white/20 hover:bg-white/10">
+                    disabled={isGeneratingInterview} variant="outline" className="border-white/20 hover:bg-white/10 cursor-pointer">
                     <RotateCcw className="w-4 h-4 mr-2" />
-                    {isGeneratingInterview ? "Refreshing..." : "Refresh Questions"}
+                    {isGeneratingInterview ? "Refreshing..." : "New Questions"}
                   </Button>
                 </div>
 
@@ -1096,7 +1195,7 @@ const CVIntelligenceView = () => {
                     <div className="flex items-center gap-3">
                       {(() => {
                         const q = interviewSession.questions[currentQuestionIndex];
-                        const stageInfo = STAGE_INFO[q.stage] || STAGE_INFO.technical;
+                        const stageInfo = STAGE_INFO[q?.stage] || STAGE_INFO.technical;
                         return (
                           <div className={`px-3 py-1 rounded-full ${stageInfo.bg} ${stageInfo.color} text-sm font-medium flex items-center gap-1`}>
                             <stageInfo.icon className="w-4 h-4" />{stageInfo.name}
@@ -1109,17 +1208,16 @@ const CVIntelligenceView = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Timer className="w-4 h-4 text-white/40" />
-                      <span className={`font-mono ${timer > interviewSession.questions[currentQuestionIndex].time_limit_seconds ? 'text-red-400' : 'text-white'}`}>
+                      <span className={`font-mono ${timer > (interviewSession.questions[currentQuestionIndex]?.time_limit_seconds || 120) ? 'text-red-400' : 'text-white'}`}>
                         {formatTime(timer)}
                       </span>
                     </div>
                   </div>
                   
                   <h3 className="text-xl text-white mb-6">
-                    {interviewSession.questions[currentQuestionIndex].question}
+                    {interviewSession.questions[currentQuestionIndex]?.question}
                   </h3>
                   
-                  {/* Answer Area */}
                   {!currentEvaluation ? (
                     <div className="space-y-4">
                       <Textarea value={answerText} onChange={(e) => setAnswerText(e.target.value)}
@@ -1129,20 +1227,20 @@ const CVIntelligenceView = () => {
                       
                       <div className="flex gap-3">
                         {!isTimerRunning ? (
-                          <Button onClick={startAnswer} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
-                            <Play className="w-4 h-4 mr-2" />Start Answer
+                          <Button onClick={startAnswer} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 cursor-pointer">
+                            <Play className="w-4 h-4 mr-2" />Start Answering
                           </Button>
                         ) : (
                           <>
                             <Button onClick={toggleRecording} variant="outline"
-                              className={`border-white/20 ${isRecording ? 'bg-red-500/20 border-red-500/50' : ''}`}>
+                              className={`cursor-pointer border-white/20 ${isRecording ? 'bg-red-500/20 border-red-500/50' : ''}`}>
                               {isRecording ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2" />}
                               {isRecording ? "Stop" : "Voice"}
                             </Button>
                             <Button onClick={submitAnswer} disabled={isEvaluating || !answerText.trim()}
-                              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500">
+                              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer disabled:opacity-50">
                               {isEvaluating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                              {isEvaluating ? "Evaluating..." : "Submit"}
+                              {isEvaluating ? "Evaluating..." : "Submit Answer"}
                             </Button>
                           </>
                         )}
@@ -1153,9 +1251,7 @@ const CVIntelligenceView = () => {
                       <div className={`p-6 rounded-xl bg-gradient-to-br ${getScoreBackground(currentEvaluation.score)}`}>
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="text-white font-semibold">Your Score</h4>
-                          <span className={`text-3xl font-bold ${getScoreColor(currentEvaluation.score)}`}>
-                            {currentEvaluation.score}%
-                          </span>
+                          <span className={`text-3xl font-bold ${getScoreColor(currentEvaluation.score)}`}>{currentEvaluation.score}%</span>
                         </div>
                         <div className="grid grid-cols-4 gap-4 text-center">
                           {[{ label: "Clarity", score: currentEvaluation.clarity_score },
@@ -1170,29 +1266,26 @@ const CVIntelligenceView = () => {
                           ))}
                         </div>
                       </div>
-
                       <div className="p-4 rounded-xl bg-white/5">
                         <h4 className="text-white font-semibold mb-2">Feedback</h4>
                         <p className="text-white/70 text-sm">{currentEvaluation.feedback}</p>
                       </div>
-
                       {currentEvaluation.model_answer && (
                         <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                           <h4 className="text-indigo-400 font-semibold mb-2 flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4" />If I Were You (Model Answer)
+                            <Lightbulb className="w-4 h-4" />If I Were You (Better Answer)
                           </h4>
                           <p className="text-white/80 text-sm whitespace-pre-wrap">{currentEvaluation.model_answer}</p>
                         </div>
                       )}
-
                       <div className="flex gap-3">
                         {currentQuestionIndex < interviewSession.questions.length - 1 ? (
-                          <Button onClick={nextQuestion} className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500">
+                          <Button onClick={nextQuestion} className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer">
                             <ArrowRight className="w-4 h-4 mr-2" />Next Question
                           </Button>
                         ) : (
-                          <Button onClick={resetInterview} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
-                            <CheckCircle className="w-4 h-4 mr-2" />Finish Interview
+                          <Button onClick={resetInterview} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 cursor-pointer">
+                            <CheckCircle className="w-4 h-4 mr-2" />Finish & Start New
                           </Button>
                         )}
                       </div>
@@ -1203,7 +1296,6 @@ const CVIntelligenceView = () => {
 
               {/* Sidebar */}
               <div className="space-y-4">
-                {/* Progress */}
                 <div className="glass-light rounded-xl p-6">
                   <h4 className="text-white font-semibold mb-4">Progress (Click to Jump)</h4>
                   <div className="space-y-2">
@@ -1213,7 +1305,7 @@ const CVIntelligenceView = () => {
                       const isCurrent = idx === currentQuestionIndex;
                       return (
                         <button key={q.id} onClick={() => skipToQuestion(idx)}
-                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                          className={`w-full p-3 rounded-lg border transition-all text-left cursor-pointer ${
                             isCurrent ? 'border-indigo-500 bg-indigo-500/10' :
                             isCompleted ? 'border-green-500/30 bg-green-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
                           }`}>
@@ -1231,16 +1323,16 @@ const CVIntelligenceView = () => {
                   </div>
                 </div>
 
-                {/* If I Were You */}
                 <div className="glass-light rounded-xl p-6">
                   <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <HelpCircle className="w-5 h-5 text-indigo-400" />"If I Were You" Mode
                   </h4>
+                  <p className="text-white/50 text-xs mb-3">Paste any question to get a personalized model answer based on your CV</p>
                   <Textarea value={ifIWereYouQuestion} onChange={(e) => setIfIWereYouQuestion(e.target.value)}
                     placeholder="Paste any interview question..."
                     className="min-h-[80px] bg-white/5 border-white/10 text-white placeholder:text-white/30 mb-3" />
                   <Button onClick={getIfIWereYou} disabled={isGettingModelAnswer || !ifIWereYouQuestion.trim()}
-                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
+                    className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer disabled:opacity-50">
                     {isGettingModelAnswer ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Lightbulb className="w-4 h-4 mr-2" />}
                     Get Model Answer
                   </Button>
@@ -1256,38 +1348,51 @@ const CVIntelligenceView = () => {
         </div>
       )}
 
-      {/* Learning Roadmap Tab */}
+      {/* ===== LEARNING ROADMAP TAB ===== */}
       {activeTab === "roadmap" && cvData && (
         <div className="space-y-6">
           <div className="glass-light rounded-xl p-6">
             <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
               <Route className="w-6 h-6 text-orange-400" />Learning Roadmap
             </h3>
-            <div className="space-y-6">
-              <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-white/60 text-sm mb-2">Creating roadmap for:</p>
-                <p className="text-white font-medium">{getEffectiveRole() || targetRole || "Set role in Analysis tab"}</p>
+            
+            {!targetRole && !getEffectiveRole() ? (
+              <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                <p className="text-white/80 mb-4">Please set your target role in the Analysis tab first</p>
+                <Button onClick={() => setActiveTab("analyze")} className="bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer">
+                  <Target className="w-4 h-4 mr-2" />Go to Analysis
+                </Button>
               </div>
-              <div>
-                <label className="text-white/60 text-sm mb-3 block">Select Timeframe</label>
-                <div className="grid grid-cols-3 gap-4">
-                  {[7, 14, 30].map(days => (
-                    <button key={days} onClick={() => setRoadmapTimeframe(days)}
-                      className={`p-4 rounded-xl border transition-all ${
-                        roadmapTimeframe === days ? 'border-orange-500 bg-orange-500/20' : 'border-white/10 hover:border-white/20'
-                      }`}>
-                      <Calendar className={`w-6 h-6 mx-auto mb-2 ${roadmapTimeframe === days ? 'text-orange-400' : 'text-white/40'}`} />
-                      <div className={`font-semibold ${roadmapTimeframe === days ? 'text-white' : 'text-white/60'}`}>{days} Days</div>
-                    </button>
-                  ))}
+            ) : (
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-white/60 text-sm mb-2">Creating roadmap for:</p>
+                  <p className="text-white font-medium text-lg">{getEffectiveRole() || targetRole}</p>
                 </div>
+                
+                <div>
+                  <label className="text-white/60 text-sm mb-3 block">Select Timeframe</label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[{ days: 7, label: "Quick Prep" }, { days: 14, label: "Balanced" }, { days: 30, label: "Comprehensive" }].map(({ days, label }) => (
+                      <button key={days} onClick={() => setRoadmapTimeframe(days)}
+                        className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                          roadmapTimeframe === days ? 'border-orange-500 bg-orange-500/20' : 'border-white/10 hover:border-white/20'
+                        }`}>
+                        <Calendar className={`w-6 h-6 mx-auto mb-2 ${roadmapTimeframe === days ? 'text-orange-400' : 'text-white/40'}`} />
+                        <div className={`font-semibold ${roadmapTimeframe === days ? 'text-white' : 'text-white/60'}`}>{days} Days</div>
+                        <div className="text-white/40 text-xs">{label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <Button onClick={generateRoadmap} disabled={isGeneratingRoadmap}
+                  className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-6 text-lg cursor-pointer disabled:opacity-50">
+                  {isGeneratingRoadmap ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Generating...</> : <><Sparkles className="w-5 h-5 mr-2" />Generate {roadmapTimeframe}-Day Roadmap</>}
+                </Button>
               </div>
-              <Button onClick={generateRoadmap} disabled={isGeneratingRoadmap || !getEffectiveRole()}
-                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 py-6 text-lg">
-                {isGeneratingRoadmap ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                Generate {roadmapTimeframe}-Day Roadmap
-              </Button>
-            </div>
+            )}
           </div>
 
           {roadmap && (
@@ -1299,7 +1404,7 @@ const CVIntelligenceView = () => {
                 {roadmap.daily_plan?.map((day, idx) => (
                   <div key={idx} className="glass-light rounded-xl overflow-hidden">
                     <button onClick={() => toggleDayExpand(day.day)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                      className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center">
                           <span className="text-orange-400 font-bold">D{day.day}</span>
@@ -1320,6 +1425,18 @@ const CVIntelligenceView = () => {
                             </li>
                           ))}
                         </ul>
+                        {day.milestones?.length > 0 && (
+                          <div className="mt-3">
+                            <span className="text-white/50 text-xs">By end of day:</span>
+                            <ul className="mt-1 space-y-1">
+                              {day.milestones.map((m, midx) => (
+                                <li key={midx} className="text-green-300 text-sm flex items-start gap-2">
+                                  <Star className="w-4 h-4 mt-0.5" />{m}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1328,7 +1445,9 @@ const CVIntelligenceView = () => {
               <div className="space-y-4">
                 {roadmap.key_skills_to_learn?.length > 0 && (
                   <div className="glass-light rounded-xl p-6">
-                    <h4 className="text-white font-semibold mb-4">Skills to Learn</h4>
+                    <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                      <Code className="w-5 h-5 text-purple-400" />Skills to Learn
+                    </h4>
                     <div className="space-y-3">
                       {roadmap.key_skills_to_learn.map((skill, idx) => (
                         <div key={idx} className="p-3 rounded-lg bg-white/5 border border-white/10">
@@ -1338,9 +1457,36 @@ const CVIntelligenceView = () => {
                               skill.priority === 'high' ? 'bg-red-500/20 text-red-300' : 'bg-yellow-500/20 text-yellow-300'
                             }`}>{skill.priority}</span>
                           </div>
+                          {skill.why_important && <p className="text-white/50 text-xs mt-1">{skill.why_important}</p>}
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {roadmap.interview_focus_areas?.length > 0 && (
+                  <div className="glass-light rounded-xl p-6">
+                    <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                      <Target className="w-5 h-5 text-green-400" />Interview Focus
+                    </h4>
+                    <ul className="space-y-2">
+                      {roadmap.interview_focus_areas.map((area, idx) => (
+                        <li key={idx} className="text-white/80 text-sm flex items-start gap-2">
+                          <Zap className="w-4 h-4 text-green-400 mt-0.5" />{area}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {roadmap.practice_questions?.length > 0 && (
+                  <div className="glass-light rounded-xl p-6">
+                    <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-indigo-400" />Practice Questions
+                    </h4>
+                    <ul className="space-y-2">
+                      {roadmap.practice_questions.map((q, idx) => (
+                        <li key={idx} className="text-white/80 text-sm p-2 rounded bg-white/5 border border-white/10">{q}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -1356,8 +1502,10 @@ const CVIntelligenceView = () => {
           <div className="w-full max-w-2xl mx-4 glass-heavy rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Edit: {editPopup.section?.title}</h3>
-              <button onClick={() => { setEditPopup(null); setEditResult(null); }} className="p-2 rounded-lg hover:bg-white/10">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-indigo-400" />Edit: {editPopup.section?.title}
+              </h3>
+              <button onClick={() => { setEditPopup(null); setEditResult(null); }} className="p-2 rounded-lg hover:bg-white/10 cursor-pointer">
                 <X className="w-5 h-5 text-white/60" />
               </button>
             </div>
@@ -1368,29 +1516,34 @@ const CVIntelligenceView = () => {
               </p>
             </div>
             <div className="mb-4">
-              <label className="text-sm text-white/60 mb-2 block">What do you want to change?</label>
+              <label className="text-sm text-white/60 mb-2 block">What do you want to change and why?</label>
               <Textarea value={editInstruction} onChange={(e) => setEditInstruction(e.target.value)}
-                placeholder="e.g., Make this more concise, add metrics..."
+                placeholder="e.g., Make this more concise, add metrics, highlight leadership..."
                 className="min-h-[100px] bg-white/5 border-white/10 text-white placeholder:text-white/30" />
             </div>
             {!editResult ? (
               <Button onClick={handleEditSubmit} disabled={isEditing || !editInstruction.trim()}
-                className="w-full bg-gradient-to-r from-indigo-500 to-purple-500">
-                {isEditing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                Generate Edit
+                className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 cursor-pointer disabled:opacity-50">
+                {isEditing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</> : <><Sparkles className="w-4 h-4 mr-2" />Generate Edit</>}
               </Button>
             ) : (
               <div className="space-y-4">
                 <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <span className="text-xs text-green-400 mb-2 block">AI Suggested Edit</span>
+                  <span className="text-xs text-green-400 mb-2 block flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />AI Suggested Edit
+                  </span>
                   <p className="text-sm text-white/80 whitespace-pre-wrap">{editResult.edited_text}</p>
                 </div>
+                <div className="p-3 rounded-lg bg-white/5">
+                  <span className="text-xs text-white/40 mb-1 block">Changes Made</span>
+                  <p className="text-sm text-white/70">{editResult.explanation}</p>
+                </div>
                 <div className="flex gap-3">
-                  <Button onClick={applyEdit} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
-                    <Save className="w-4 h-4 mr-2" />Apply
+                  <Button onClick={applyEdit} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 cursor-pointer">
+                    <Save className="w-4 h-4 mr-2" />Apply Edit
                   </Button>
-                  <Button onClick={() => setEditResult(null)} variant="outline" className="flex-1 border-white/20">
-                    <RefreshCw className="w-4 h-4 mr-2" />Retry
+                  <Button onClick={() => setEditResult(null)} variant="outline" className="flex-1 border-white/20 hover:bg-white/10 cursor-pointer">
+                    <RefreshCw className="w-4 h-4 mr-2" />Try Again
                   </Button>
                 </div>
               </div>
