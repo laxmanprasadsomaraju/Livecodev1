@@ -1068,28 +1068,41 @@ const CVIntelligenceView = () => {
             {/* RAW DOCUMENT VIEW */}
             {viewMode === "raw" && (
               <div className="glass-light rounded-xl p-6">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">Full CV Text</h3>
-                  <p className="text-white/50 text-sm">Select any text to get AI suggestions</p>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Full CV Document</h3>
+                    <p className="text-white/50 text-sm">Select any text to get AI suggestions</p>
+                  </div>
+                  <div className="text-white/40 text-xs">
+                    <FileText className="w-4 h-4 inline mr-1" />
+                    {cvData.total_lines} lines
+                  </div>
                 </div>
-                <div 
-                  className="p-6 rounded-lg bg-gradient-to-br from-slate-900/50 to-slate-800/50 border border-white/10 whitespace-pre-wrap text-white/90 text-sm font-mono leading-relaxed select-text shadow-xl"
-                  style={{
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
-                  }}
-                  onMouseUp={(e) => {
-                    const selection = window.getSelection();
-                    const text = selection.toString().trim();
-                    if (text) {
-                      setSelectedText(text);
-                      const range = selection.getRangeAt(0);
-                      const rect = range.getBoundingClientRect();
-                      setSelectionPosition({ x: rect.right, y: rect.bottom });
-                    }
-                  }}
-                >
-                  {cvData.raw_text}
+                
+                {/* Document Container - A4 Page Style */}
+                <div className="bg-white rounded-lg shadow-2xl p-12 max-w-4xl mx-auto" style={{minHeight: '297mm'}}>
+                  <div 
+                    className="text-gray-900 text-base leading-relaxed select-text"
+                    style={{
+                      fontFamily: 'Georgia, serif',
+                      wordWrap: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}
+                    onMouseUp={(e) => {
+                      const selection = window.getSelection();
+                      const text = selection.toString().trim();
+                      if (text) {
+                        setSelectedText(text);
+                        const range = selection.getRangeAt(0);
+                        const rect = range.getBoundingClientRect();
+                        setSelectionPosition({ x: rect.right, y: rect.bottom });
+                      }
+                    }}
+                  >
+                    {cvData.raw_text}
+                  </div>
                 </div>
               </div>
             )}
