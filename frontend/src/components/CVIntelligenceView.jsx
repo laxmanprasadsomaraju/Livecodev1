@@ -316,6 +316,200 @@ const CVIntelligenceView = () => {
     }
   };
 
+  // New section management functions
+  const loadAISuggestions = async () => {
+    if (!cvData) return;
+    
+    setIsLoadingSuggestions(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/section/ai-suggest?cv_id=${cvData.cv_id}`, {
+        method: 'POST'
+      });
+      
+      if (!response.ok) throw new Error('Failed to get suggestions');
+      
+      const data = await response.json();
+      setAiSuggestions(data);
+      toast.success("AI suggestions loaded!");
+    } catch (error) {
+      console.error('AI suggestions error:', error);
+      toast.error("Failed to load suggestions");
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const addSection = async () => {
+    if (!newSectionTitle.trim() || !newSectionContent.trim()) {
+      toast.error("Please provide section title and content");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/section/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv_id: cvData.cv_id,
+          section_type: newSectionType,
+          title: newSectionTitle,
+          content: newSectionContent
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to add section');
+
+      const data = await response.json();
+      
+      // Add section to local state
+      setCvData(prev => ({
+        ...prev,
+        sections: [...prev.sections, data.section]
+      }));
+      
+      // Reset form
+      setIsAddingSection(false);
+      setNewSectionTitle("");
+      setNewSectionContent("");
+      setNewSectionType("other");
+      
+      toast.success("Section added!");
+    } catch (error) {
+      console.error('Add section error:', error);
+      toast.error("Failed to add section");
+    }
+  };
+
+  const deleteSection = async (sectionId) => {
+    if (!confirm("Are you sure you want to delete this section?")) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/section/${cvData.cv_id}/${sectionId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete section');
+
+      setCvData(prev => ({
+        ...prev,
+        sections: prev.sections.filter(s => s.id !== sectionId)
+      }));
+
+      toast.success("Section deleted!");
+    } catch (error) {
+      console.error('Delete section error:', error);
+      toast.error("Failed to delete section");
+    }
+  };
+
+  const mergeSections = async () => {
+    if (selectedSections.length < 2) {
+      toast.error("Please select at least 2 sections to merge");
+      return;
+    }
+
+    const mergedTitle = prompt("Enter title for merged section:", "Combined Section");
+    if (!mergedTitle) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/section/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv_id: cvData.cv_id,
+          section_ids: selectedSections,
+          merged_title: mergedTitle,
+          merged_type: "other"
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to merge sections');
+
+      const data = await response.json();
+      
+      // Update local state
+      setCvData(prev => ({
+        ...prev,
+        sections: prev.sections.filter(s => !selectedSections.includes(s.id)).concat([data.merged_section])
+      }));
+      
+      setSelectedSections([]);
+      toast.success("Sections merged!");
+    } catch (error) {
+      console.error('Merge sections error:', error);
+      toast.error("Failed to merge sections");
+    }
+  };
+
+  const openChatEdit = (section) => {
+    setChatSection(section);
+    setChatMessages([]);
+    setChatInput("");
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || !chatSection) return;
+
+    const userMessage = { role: "user", content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput("");
+    setIsChatting(true);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/cv/section/chat-edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cv_id: cvData.cv_id,
+          section_id: chatSection.id,
+          user_message: chatInput,
+          conversation_history: chatMessages
+        })
+      });
+
+      if (!response.ok) throw new Error('Chat failed');
+
+      const data = await response.json();
+      
+      const aiMessage = { role: "assistant", content: data.response };
+      setChatMessages(prev => [...prev, aiMessage]);
+      
+      // If there's a suggested edit, offer to apply it
+      if (data.suggested_edit) {
+        const applyConfirm = confirm("AI has a suggested edit. Apply it?");
+        if (applyConfirm) {
+          // Update section content
+          setCvData(prev => ({
+            ...prev,
+            sections: prev.sections.map(s => 
+              s.id === chatSection.id 
+                ? { ...s, content: data.suggested_edit, raw_text: data.suggested_edit }
+                : s
+            )
+          }));
+          
+          // Also update in database
+          const formData = new FormData();
+          formData.append('cv_id', cvData.cv_id);
+          formData.append('section_id', chatSection.id);
+          formData.append('new_content', data.suggested_edit);
+          
+          await fetch(`${BACKEND_URL}/api/cv/update-section`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          toast.success("Edit applied!");
+        }
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast.error("Failed to send message");
+    } finally {
+      setIsChatting(false);
+    }
+  };
+
   // Analysis handler
   const runAnalysis = async () => {
     if (!targetRole.trim() || !companyName.trim()) {
