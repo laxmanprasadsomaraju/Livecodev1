@@ -1,62 +1,42 @@
 """
 Emergent LLM Integration
-Universal key for OpenAI, Anthropic, Google models
+Universal key for OpenAI, Anthropic, Google models via emergentintegrations
 """
 
 import os
+import uuid
 from typing import Optional, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
 
 try:
-    import emergentintegrations.openai as emergent_openai
-    import emergentintegrations.anthropic as emergent_anthropic
-    import emergentintegrations.google_genai as emergent_google
+    from emergentintegrations.llm.chat import LlmChat, ChatError, UserMessage, ImageContent
     EMERGENT_AVAILABLE = True
     logger.info("emergentintegrations imported successfully")
 except ImportError as e:
     logger.error(f"Failed to import emergentintegrations: {e}")
     EMERGENT_AVAILABLE = False
+    LlmChat = None
+    ChatError = Exception
+    UserMessage = None
+    ImageContent = None
+
 
 class EmergentLLMClient:
     """Universal LLM client using Emergent key"""
     
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv('EMERGENT_LLM_KEY')
-        self.clients = {}
         
         if not self.api_key:
             logger.warning("No Emergent LLM key configured")
         
-        if self.api_key and EMERGENT_AVAILABLE:
-            self._initialize_clients()
-        
         logger.info(f"EmergentLLMClient initialized. Key present: {bool(self.api_key)}, Available: {EMERGENT_AVAILABLE}")
     
-    def _initialize_clients(self):
-        """Initialize all provider clients with Emergent key"""
-        try:
-            # OpenAI via Emergent
-            self.clients['openai'] = emergent_openai.OpenAI(api_key=self.api_key)
-            logger.info("Emergent OpenAI client initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Emergent OpenAI: {e}")
-        
-        try:
-            # Anthropic via Emergent
-            self.clients['anthropic'] = emergent_anthropic.Anthropic(api_key=self.api_key)
-            logger.info("Emergent Anthropic client initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Emergent Anthropic: {e}")
-        
-        try:
-            # Google via Emergent
-            emergent_google.genai.configure(api_key=self.api_key)
-            self.clients['google'] = emergent_google.genai
-            logger.info("Emergent Google AI client initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Emergent Google: {e}")
+    def _get_session_id(self) -> str:
+        """Generate a unique session ID"""
+        return str(uuid.uuid4())
     
     async def chat_completion(
         self,
@@ -83,122 +63,101 @@ class EmergentLLMClient:
         try:
             # Determine provider from model name
             if model.startswith('gpt-'):
-                return await self._openai_completion(model, messages, temperature, max_tokens)
+                provider = "openai"
             elif model.startswith('claude-'):
-                return await self._anthropic_completion(model, messages, temperature, max_tokens)
+                provider = "anthropic"
             elif model.startswith('gemini-'):
-                return await self._google_completion(model, messages, temperature, max_tokens)
+                provider = "gemini"
             else:
                 return {"error": f"Unknown model: {model}"}
+            
+            # Extract system message if present
+            system_message = "You are a helpful assistant."
+            converted_messages = []
+            
+            for msg in messages:
+                if msg.get('role') == 'system':
+                    system_message = msg.get('content', system_message)
+                else:
+                    converted_messages.append(msg)
+            
+            # Create LlmChat instance
+            chat = LlmChat(
+                api_key=self.api_key,
+                session_id=self._get_session_id(),
+                system_message=system_message
+            )
+            
+            # Configure model and provider
+            chat = chat.with_model(provider, model)
+            
+            # Set temperature
+            chat = chat.with_params(temperature=temperature)
+            
+            # Process all messages except the last one as history
+            for msg in converted_messages[:-1]:
+                if msg.get('role') == 'user':
+                    await chat._add_user_message(chat.messages, UserMessage(text=msg.get('content', '')))
+                elif msg.get('role') == 'assistant':
+                    await chat._add_assistant_message(chat.messages, msg.get('content', ''))
+            
+            # Send the last user message and get response
+            last_message = converted_messages[-1] if converted_messages else {"role": "user", "content": "Hello"}
+            response_text = await chat.send_message(UserMessage(text=last_message.get('content', '')))
+            
+            return {
+                "content": response_text,
+                "model": model,
+                "provider": provider,
+                "usage": {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0
+                }
+            }
         
+        except ChatError as e:
+            logger.error(f"Chat completion ChatError: {e}")
+            return {"error": str(e)}
         except Exception as e:
             logger.error(f"Chat completion error: {e}")
             return {"error": str(e)}
     
-    async def _openai_completion(self, model, messages, temperature, max_tokens):
-        """OpenAI completion via Emergent"""
-        client = self.clients.get('openai')
-        if not client:
-            return {"error": "OpenAI client not initialized"}
+    async def simple_completion(
+        self,
+        prompt: str,
+        model: str = "gemini-2.0-flash-exp",
+        system_message: str = "You are a helpful assistant.",
+        temperature: float = 0.7
+    ) -> str:
+        """Simple one-shot completion"""
         
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
+        if not self.api_key:
+            raise ValueError("No Emergent LLM key configured")
+        
+        if not EMERGENT_AVAILABLE:
+            raise ValueError("emergentintegrations not installed")
+        
+        # Determine provider from model name
+        if model.startswith('gpt-'):
+            provider = "openai"
+        elif model.startswith('claude-'):
+            provider = "anthropic"
+        elif model.startswith('gemini-'):
+            provider = "gemini"
+        else:
+            raise ValueError(f"Unknown model: {model}")
+        
+        chat = LlmChat(
+            api_key=self.api_key,
+            session_id=self._get_session_id(),
+            system_message=system_message
         )
         
-        return {
-            "content": response.choices[0].message.content,
-            "model": model,
-            "provider": "openai",
-            "usage": {
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens
-            }
-        }
-    
-    async def _anthropic_completion(self, model, messages, temperature, max_tokens):
-        """Anthropic completion via Emergent"""
-        client = self.clients.get('anthropic')
-        if not client:
-            return {"error": "Anthropic client not initialized"}
+        chat = chat.with_model(provider, model).with_params(temperature=temperature)
         
-        # Convert messages format
-        system_message = ""
-        converted_messages = []
-        for msg in messages:
-            if msg['role'] == 'system':
-                system_message = msg['content']
-            else:
-                converted_messages.append({
-                    "role": msg['role'],
-                    "content": msg['content']
-                })
-        
-        response = client.messages.create(
-            model=model,
-            system=system_message if system_message else None,
-            messages=converted_messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        
-        return {
-            "content": response.content[0].text,
-            "model": model,
-            "provider": "anthropic",
-            "usage": {
-                "prompt_tokens": response.usage.input_tokens,
-                "completion_tokens": response.usage.output_tokens,
-                "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-            }
-        }
-    
-    async def _google_completion(self, model, messages, temperature, max_tokens):
-        """Google completion via Emergent"""
-        genai = self.clients.get('google')
-        if not genai:
-            return {"error": "Google AI client not initialized"}
-        
-        # Convert messages to Google format
-        history = []
-        last_message = None
-        
-        for msg in messages:
-            if msg['role'] == 'system':
-                # Google doesn't have system role, prepend to first user message
-                continue
-            elif msg['role'] == 'user':
-                last_message = msg['content']
-            elif msg['role'] == 'assistant':
-                if last_message:
-                    history.append({"role": "user", "parts": [last_message]})
-                history.append({"role": "model", "parts": [msg['content']]})
-                last_message = None
-        
-        model_instance = genai.GenerativeModel(model)
-        chat = model_instance.start_chat(history=history)
-        
-        response = chat.send_message(
-            last_message if last_message else messages[-1]['content'],
-            generation_config={
-                "temperature": temperature,
-                "max_output_tokens": max_tokens
-            }
-        )
-        
-        return {
-            "content": response.text,
-            "model": model,
-            "provider": "google",
-            "usage": {
-                "prompt_tokens": 0,  # Google doesn't provide token counts easily
-                "completion_tokens": 0,
-                "total_tokens": 0
-            }
-        }
+        response = await chat.send_message(UserMessage(text=prompt))
+        return response
     
     def is_configured(self) -> bool:
         """Check if Emergent key is configured"""
@@ -227,8 +186,10 @@ class EmergentLLMClient:
             ]
         }
 
+
 # Global Emergent LLM client
 emergent_llm_client = EmergentLLMClient()
+
 
 def reload_emergent_client():
     """Reload client with new API key"""
