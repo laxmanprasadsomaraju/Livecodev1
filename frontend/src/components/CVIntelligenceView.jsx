@@ -60,6 +60,7 @@ const CVIntelligenceView = () => {
   // Analysis state
   const [targetRole, setTargetRole] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [deepResearch, setDeepResearch] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
