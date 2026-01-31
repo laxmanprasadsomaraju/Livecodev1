@@ -6118,6 +6118,94 @@ Preserve the structure but enhance the content. Return the improved CV text."""
         return {"improved_text": response}
         
     except Exception as e:
+
+@api_router.post("/cv/convert-to-latex")
+async def convert_cv_to_latex(request: dict):
+    """Convert CV to LaTeX format with AI improvements"""
+    try:
+        raw_text = request.get('raw_text', '')
+        cv_id = request.get('cv_id', '')
+        
+        system_prompt = """You are a LaTeX CV formatting expert. Convert the provided CV to professional LaTeX code.
+
+REQUIREMENTS:
+1. Use modern CV templates (moderncv or similar professional style)
+2. Preserve ALL content but enhance formatting
+3. Add proper LaTeX sections (\\section, \\subsection)
+4. Use professional fonts and spacing
+5. Include improvements as LaTeX comments with %AI: prefix
+6. Mark changes with \\textcolor or highlighting
+
+RESPOND WITH VALID JSON:
+{
+    "latex_code": "Complete LaTeX document code",
+    "changes_made": [
+        {
+            "original": "Original text",
+            "improved": "Improved text",
+            "reason": "Why this change improves the CV",
+            "line_number": 42
+        }
+    ],
+    "summary": "Brief summary of all improvements"
+}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"Convert this CV to LaTeX with improvements:\n\n{raw_text[:20000]}")
+        response = await chat.send_message(msg)
+        
+        result = safe_parse_json(response, {
+            "latex_code": "% LaTeX conversion in progress",
+            "changes_made": [],
+            "summary": "Processing..."
+        })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"LaTeX conversion error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/cv/chat-about-change")
+async def chat_about_cv_change(request: dict):
+    """Chat with AI about specific CV changes"""
+    try:
+        selected_text = request.get('selected_text', '')
+        user_message = request.get('user_message', '')
+        context = request.get('context', '')
+        
+        system_prompt = """You are a CV editing assistant. Help users understand and refine CV changes.
+
+Be conversational, helpful, and provide concrete suggestions.
+
+RESPOND WITH JSON:
+{
+    "response": "Your helpful response",
+    "suggested_edit": "Suggested text if applicable (null if just explaining)",
+    "explanation": "Brief explanation"
+}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"""Context: {context}
+Selected text: "{selected_text}"
+User question: {user_message}
+
+Provide helpful guidance.""")
+        
+        response = await chat.send_message(msg)
+        result = safe_parse_json(response, {
+            "response": "Let me help you with that change.",
+            "suggested_edit": None,
+            "explanation": ""
+        })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Chat about change error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
         logger.error(f"AI improve CV error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
