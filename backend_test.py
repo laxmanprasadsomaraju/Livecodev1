@@ -1448,6 +1448,96 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
             self.failed_tests.append({"test": "CV Update Section", "error": str(e)})
             return False, {}
 
+    # ============== REMOTION AI VIDEO GENERATOR TESTS ==============
+    
+    def test_remotion_generate_code(self):
+        """Test Remotion code generation API"""
+        data = {
+            "user_prompt": "Create a simple text fade in animation",
+            "conversation_history": []
+        }
+        
+        success, response = self.run_test("Remotion Generate Code", "POST", "remotion/generate-code", 200, data, timeout=90)
+        
+        if success and response:
+            expected_keys = ["code", "explanation", "agent_thoughts", "video_config"]
+            if all(key in response for key in expected_keys):
+                code = response.get('code', '')
+                explanation = response.get('explanation', '')
+                agent_thoughts = response.get('agent_thoughts', [])
+                video_config = response.get('video_config', {})
+                
+                print(f"   ✓ Code generated: {len(code)} characters")
+                print(f"   ✓ Explanation provided: {len(explanation)} characters")
+                print(f"   ✓ Agent thoughts: {len(agent_thoughts)} agents")
+                
+                # Check video config structure
+                config_keys = ["width", "height", "fps", "durationInFrames"]
+                if all(key in video_config for key in config_keys):
+                    print(f"   ✓ Video config complete: {video_config.get('width')}x{video_config.get('height')} @ {video_config.get('fps')}fps")
+                else:
+                    print(f"   ⚠️ Video config incomplete: {list(video_config.keys())}")
+                
+                # Check if code contains Remotion imports
+                if 'remotion' in code.lower() and 'import' in code:
+                    print(f"   ✓ Remotion imports detected")
+                else:
+                    print(f"   ⚠️ Remotion imports may be missing")
+                
+                # Store code for refinement test
+                self.remotion_code = code
+                
+                return True, response
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+                print(f"   Response keys: {list(response.keys()) if isinstance(response, dict) else 'Non-dict response'}")
+        
+        return success, response
+
+    def test_remotion_refine_code(self):
+        """Test Remotion code refinement API"""
+        # Use stored code from generation test, or fallback code
+        current_code = getattr(self, 'remotion_code', """const MyComponent = () => {
+    return <div>Test</div>;
+};""")
+        
+        data = {
+            "current_code": current_code,
+            "user_feedback": "Make the text blue"
+        }
+        
+        success, response = self.run_test("Remotion Refine Code", "POST", "remotion/refine-code", 200, data, timeout=60)
+        
+        if success and response:
+            expected_keys = ["refined_code", "changes_made", "explanation"]
+            if all(key in response for key in expected_keys):
+                refined_code = response.get('refined_code', '')
+                changes_made = response.get('changes_made', '')
+                explanation = response.get('explanation', '')
+                
+                print(f"   ✓ Refined code: {len(refined_code)} characters")
+                print(f"   ✓ Changes made: {len(changes_made)} characters")
+                print(f"   ✓ Explanation: {len(explanation)} characters")
+                
+                # Check if code was actually modified
+                if refined_code != current_code:
+                    print(f"   ✓ Code was successfully refined")
+                else:
+                    print(f"   ⚠️ Code appears unchanged")
+                
+                # Check if blue color was added (based on feedback)
+                if 'blue' in refined_code.lower() or '#' in refined_code:
+                    print(f"   ✓ Color modification detected")
+                else:
+                    print(f"   ⚠️ Color modification not clearly visible")
+                
+                return True, response
+            else:
+                print(f"   ⚠️ Missing expected response keys")
+                print(f"   Response keys: {list(response.keys()) if isinstance(response, dict) else 'Non-dict response'}")
+        
+        return success, response
+
     # ============== NEW CV INTELLIGENCE PHASE 2 & PHASE 3 TESTS ==============
     
     def test_cv_interview_generate(self):
