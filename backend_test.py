@@ -2008,9 +2008,14 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
         print(f"📍 Base URL: {self.base_url}")
         print("=" * 60)
 
-        # Test all endpoints - prioritizing CV INTELLIGENCE & INTERVIEW MENTOR features
+        # Test all endpoints - prioritizing NEW ENHANCED CV INTELLIGENCE APIs from review request
         tests = [
             self.test_health,
+            # NEW ENHANCED CV INTELLIGENCE APIs - REVIEW REQUEST FOCUS
+            self.test_cv_common_roles,
+            self.test_cv_interviewer_research,
+            self.test_cv_enhanced_company_research,
+            self.test_cv_interview_generation_with_refresh,
             # CV INTELLIGENCE & INTERVIEW MENTOR - HIGHEST PRIORITY (Phase 1 MVP)
             self.test_cv_upload,
             self.test_cv_get,
