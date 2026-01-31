@@ -2212,6 +2212,62 @@ const CVIntelligenceView = () => {
           </div>
         </div>
       )}
+      
+      {/* AI Text Selection Popup */}
+      {selectedText && selectionPosition && (
+        <div
+          className="fixed z-50 glass-light rounded-lg p-3 shadow-2xl"
+          style={{
+            left: `${selectionPosition.x}px`,
+            top: `${selectionPosition.y + 10}px`,
+            maxWidth: '300px'
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-white/60">Selected Text</span>
+            <button onClick={() => {setSelectedText(""); setSelectionPosition(null);}} className="text-white/40 hover:text-white">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <p className="text-xs text-white/80 mb-3 max-h-20 overflow-y-auto">{selectedText}</p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={async () => {
+                setIsGettingAISuggestion(true);
+                try {
+                  const response = await fetch(`${BACKEND_URL}/api/cv/edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      cv_id: cvData.cv_id,
+                      section_id: null,
+                      edit_instruction: `Make this better and more professional: "${selectedText}"`
+                    })
+                  });
+                  const data = await response.json();
+                  setAiPopupSuggestion(data.edited_text);
+                } catch (error) {
+                  toast.error("Failed to get AI suggestion");
+                } finally {
+                  setIsGettingAISuggestion(false);
+                }
+              }}
+              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-xs"
+              disabled={isGettingAISuggestion}
+            >
+              {isGettingAISuggestion ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+              Improve
+            </Button>
+          </div>
+          {aiPopupSuggestion && (
+            <div className="mt-3 p-2 rounded bg-green-500/10 border border-green-500/20">
+              <span className="text-xs text-green-400 block mb-1">AI Suggestion:</span>
+              <p className="text-xs text-white/80">{aiPopupSuggestion}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
