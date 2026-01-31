@@ -366,6 +366,30 @@ backend:
         agent: "testing"
         comment: "✅ REVIEW REQUEST TESTING COMPLETE - POST /api/agent/business/analyze endpoint working perfectly. Successfully analyzed OpenAI company (https://openai.com) and returned comprehensive 8-sheet analysis as requested. Response includes: company_name='OpenAI', sheets with 8 comprehensive analysis sections ['1_Company_Overview', '2_Products_Services', '3_Customer_Success', '4_Pain_Points', '5_Competitive_Analysis', '6_Case_Studies', '7_Pricing_Model', '8_OKRs_Strategy'], and html_report. Meets requirement for '8-sheet output' business analysis."
 
+  - task: "Remotion Code Generation API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/remotion/generate-code endpoint. Multi-agent system with 4 AI agents: Requirements Analyzer, Code Architect, Code Generator, Code Reviewer. Returns complete Remotion React code with video configuration."
+
+  - task: "Remotion Code Refinement API"
+    implemented: true
+    working: NA
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: NA
+        agent: "main"
+        comment: "Created POST /api/remotion/refine-code endpoint. Takes current code and user feedback, refines and improves the Remotion code based on requests."
+
 frontend:
   - task: "Skill Level Selection UI"
     implemented: true
