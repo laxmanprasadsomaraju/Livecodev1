@@ -8,7 +8,7 @@ import {
   ArrowRight, RefreshCw, MessageSquare, Zap, Play, Pause,
   Mic, MicOff, Send, Timer, CheckCircle2, XCircle, 
   Calendar, Route, ChevronDown, ChevronUp, PlayCircle,
-  StopCircle, Volume2, HelpCircle
+  StopCircle, Volume2, HelpCircle, Plus, ArrowLeft
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
