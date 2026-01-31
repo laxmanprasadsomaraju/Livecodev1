@@ -1801,6 +1801,31 @@ const CVIntelligenceView = () => {
 
           {/* Interview in Progress */}
           {interviewSession && interviewSession.questions?.length > 0 && (
+            <div className="space-y-4">
+              {/* Back to Roles & Refresh Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setInterviewSession(null);
+                    setCurrentQuestionIndex(0);
+                    setAnswers([]);
+                    setTimer(0);
+                  }}
+                  variant="outline"
+                  className="border-white/20"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Roles
+                </Button>
+                <Button
+                  onClick={() => generateInterview(currentInterviewStage)}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-500"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh Questions
+                </Button>
+              </div>
+
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Main Interview Area */}
               <div className="lg:col-span-2 space-y-4">
