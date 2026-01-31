@@ -985,30 +985,74 @@ const CVIntelligenceView = () => {
             )}
 
             {/* Sections */}
+            {/* Section Management Header */}
+            {selectedSections.length > 0 && (
+              <div className="glass-light rounded-xl p-4 mb-4 flex items-center justify-between">
+                <span className="text-white">{selectedSections.length} section(s) selected</span>
+                <div className="flex gap-2">
+                  <Button onClick={mergeSections} size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500">
+                    Merge Sections
+                  </Button>
+                  <Button onClick={() => setSelectedSections([])} size="sm" variant="outline" className="border-white/20">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             {cvData.sections?.map((section) => {
               const Icon = SECTION_ICONS[section.type] || FileText;
               const colorClass = SECTION_COLORS[section.type] || SECTION_COLORS.other;
+              const isSelected = selectedSections.includes(section.id);
               
               return (
                 <div
                   key={section.id}
-                  onClick={(e) => handleSectionClick(section, e)}
                   className={`
-                    glass-light rounded-xl p-6 cursor-pointer transition-all duration-300
-                    hover:ring-2 hover:ring-indigo-500/50 group
-                    ${selectedSection?.id === section.id ? "ring-2 ring-indigo-500" : ""}
+                    glass-light rounded-xl p-6 transition-all duration-300 group
+                    ${isSelected ? "ring-2 ring-orange-500" : "hover:ring-2 hover:ring-indigo-500/50"}
                   `}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedSections(prev => 
+                            isSelected ? prev.filter(id => id !== section.id) : [...prev, section.id]
+                          );
+                        }}
+                        className="w-4 h-4 rounded border-white/20 bg-white/5"
+                      />
                       <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${colorClass} flex items-center justify-center`}>
                         <Icon className="w-4 h-4 text-white" />
                       </div>
-                      {section.title}
-                    </h3>
+                      <h3 className="text-lg font-semibold text-white">{section.title}</h3>
+                    </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-xs text-white/40">Click to edit</span>
-                      <Edit3 className="w-4 h-4 text-indigo-400" />
+                      <button 
+                        onClick={(e) => {e.stopPropagation(); openChatEdit(section);}}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                        title="Chat Edit"
+                      >
+                        <MessageSquare className="w-4 h-4 text-blue-400" />
+                      </button>
+                      <button 
+                        onClick={(e) => {e.stopPropagation(); handleSectionClick(section, e);}}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                        title="Quick Edit"
+                      >
+                        <Edit3 className="w-4 h-4 text-indigo-400" />
+                      </button>
+                      <button 
+                        onClick={(e) => {e.stopPropagation(); deleteSection(section.id);}}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                        title="Delete"
+                      >
+                        <X className="w-4 h-4 text-red-400" />
+                      </button>
                     </div>
                   </div>
                   <div className="text-white/70 text-sm whitespace-pre-wrap">
