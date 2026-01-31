@@ -6127,37 +6127,84 @@ async def convert_cv_to_latex(request: dict):
     try:
         raw_text = request.get('raw_text', '')
         cv_id = request.get('cv_id', '')
+        file_type = request.get('file_type', 'txt')
         
-        system_prompt = """You are a LaTeX CV formatting expert. Convert the provided CV to professional LaTeX code.
+        # Check if input is already LaTeX
+        is_already_latex = '\\documentclass' in raw_text or '\\begin{document}' in raw_text
+        
+        if is_already_latex:
+            # Preserve original LaTeX structure, only improve content
+            system_prompt = """You are a LaTeX CV expert. The user has provided an EXISTING LaTeX CV.
 
-REQUIREMENTS:
-1. Use modern CV templates (moderncv or similar professional style)
-2. Preserve ALL content but enhance formatting
-3. Add proper LaTeX sections (\\section, \\subsection)
-4. Use professional fonts and spacing
-5. Include improvements as LaTeX comments with %AI: prefix
-6. Mark changes with \\textcolor or highlighting
+CRITICAL REQUIREMENTS:
+1. PRESERVE the original LaTeX structure, document class, packages, and formatting EXACTLY
+2. PRESERVE all custom commands, styling, and layout
+3. ONLY improve the CONTENT (text within sections)
+4. DO NOT change document class, packages, or structure
+5. Mark improvements with %AI: comments above the changed lines
+6. Suggest better action verbs, add metrics, improve clarity
 
 RESPOND WITH VALID JSON:
 {
-    "latex_code": "Complete LaTeX document code",
+    "latex_code": "ORIGINAL LaTeX with ONLY content improvements - preserve all structure",
+    "changes_made": [
+        {
+            "original": "Original text content only",
+            "improved": "Improved text content only",
+            "reason": "Why this content change improves the CV",
+            "line_number": 42
+        }
+    ],
+    "summary": "Brief summary focusing on CONTENT improvements only"
+}"""
+            
+            chat = get_chat_instance(system_prompt, model_type="fast")
+            msg = UserMessage(text=f"""Improve ONLY the content of this LaTeX CV. DO NOT change structure, packages, or formatting:
+
+{raw_text}
+
+PRESERVE:
+- Document class and all packages
+- All custom commands and definitions
+- Formatting and layout structure
+- Section structure
+
+IMPROVE ONLY:
+- Content text (descriptions, bullet points)
+- Action verbs and metrics
+- Professional language""")
+        else:
+            # Convert plain text to LaTeX
+            system_prompt = """You are a LaTeX CV formatting expert. Convert the provided CV to professional LaTeX code.
+
+REQUIREMENTS:
+1. Use the SAME document class and style as shown in examples
+2. Preserve ALL content from the original CV
+3. Add proper LaTeX sections
+4. Use professional fonts and spacing
+5. Mark improvements with %AI: comments
+
+RESPOND WITH VALID JSON:
+{
+    "latex_code": "Complete professional LaTeX document",
     "changes_made": [
         {
             "original": "Original text",
             "improved": "Improved text",
-            "reason": "Why this change improves the CV",
+            "reason": "Why this improves the CV",
             "line_number": 42
         }
     ],
-    "summary": "Brief summary of all improvements"
+    "summary": "Brief summary of improvements and formatting"
 }"""
+            
+            chat = get_chat_instance(system_prompt, model_type="fast")
+            msg = UserMessage(text=f"Convert this CV to professional LaTeX:\n\n{raw_text[:20000]}")
         
-        chat = get_chat_instance(system_prompt, model_type="fast")
-        msg = UserMessage(text=f"Convert this CV to LaTeX with improvements:\n\n{raw_text[:20000]}")
         response = await chat.send_message(msg)
         
         result = safe_parse_json(response, {
-            "latex_code": "% LaTeX conversion in progress",
+            "latex_code": raw_text if is_already_latex else "% LaTeX conversion in progress",
             "changes_made": [],
             "summary": "Processing..."
         })
