@@ -5940,6 +5940,108 @@ def is_latex_document(text: str) -> bool:
     latex_indicators = ['\\documentclass', '\\begin{document}', '\\section', '\\subsection', '\\item', '\\textbf']
     return any(indicator in text for indicator in latex_indicators)
 
+def basic_parse_cv_sections(raw_text: str) -> Dict:
+    """Basic CV parsing without AI - fallback when budget exceeded"""
+    import re
+    
+    lines = raw_text.split('\n')
+    
+    # Common section headers
+    section_patterns = {
+        'experience': r'(work\s*experience|professional\s*experience|employment|experience)',
+        'education': r'(education|academic|qualifications|degrees)',
+        'skills': r'(skills|technical\s*skills|competencies|technologies)',
+        'projects': r'(projects|personal\s*projects|portfolio)',
+        'summary': r'(summary|profile|objective|about\s*me|professional\s*summary)',
+        'certifications': r'(certifications|certificates|licenses)',
+    }
+    
+    sections = []
+    current_section = None
+    current_content = []
+    current_start = 0
+    
+    # Try to extract contact info from first few lines
+    contact_info = {}
+    email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', raw_text[:500])
+    if email_match:
+        contact_info['email'] = email_match.group()
+    
+    phone_match = re.search(r'[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,4}[-\s\.]?[0-9]{1,9}', raw_text[:500])
+    if phone_match:
+        contact_info['phone'] = phone_match.group()
+    
+    linkedin_match = re.search(r'linkedin\.com/in/[\w-]+', raw_text[:500], re.IGNORECASE)
+    if linkedin_match:
+        contact_info['linkedin'] = linkedin_match.group()
+    
+    github_match = re.search(r'github\.com/[\w-]+', raw_text[:500], re.IGNORECASE)
+    if github_match:
+        contact_info['github'] = github_match.group()
+    
+    # First non-empty line is usually the name
+    for line in lines[:5]:
+        line = line.strip()
+        if line and len(line) > 2 and not re.search(r'[@\.]', line):
+            contact_info['name'] = line
+            break
+    
+    # Parse sections
+    for i, line in enumerate(lines):
+        line_lower = line.lower().strip()
+        
+        # Check if this line is a section header
+        found_section = None
+        for section_type, pattern in section_patterns.items():
+            if re.search(pattern, line_lower) and len(line.strip()) < 50:
+                found_section = section_type
+                break
+        
+        if found_section:
+            # Save previous section
+            if current_section:
+                sections.append({
+                    'type': current_section['type'],
+                    'title': current_section['title'],
+                    'content': '\n'.join(current_content).strip(),
+                    'bullets': [c.strip() for c in current_content if c.strip().startswith(('-', '•', '*'))],
+                    'start_line': current_start,
+                    'end_line': i - 1
+                })
+            
+            current_section = {'type': found_section, 'title': line.strip()}
+            current_content = []
+            current_start = i
+        elif current_section:
+            current_content.append(line)
+    
+    # Save last section
+    if current_section:
+        sections.append({
+            'type': current_section['type'],
+            'title': current_section['title'],
+            'content': '\n'.join(current_content).strip(),
+            'bullets': [c.strip() for c in current_content if c.strip().startswith(('-', '•', '*'))],
+            'start_line': current_start,
+            'end_line': len(lines) - 1
+        })
+    
+    # If no sections found, create one with all content
+    if not sections:
+        sections.append({
+            'type': 'other',
+            'title': 'CV Content',
+            'content': raw_text,
+            'bullets': [],
+            'start_line': 0,
+            'end_line': len(lines) - 1
+        })
+    
+    return {
+        'contact_info': contact_info,
+        'sections': sections
+    }
+
 async def ai_parse_cv_sections(raw_text: str, file_type: str) -> Dict:
     """Use AI to intelligently parse CV sections"""
     system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract structured sections.
@@ -5978,14 +6080,18 @@ RESPOND ONLY WITH VALID JSON:
     ]
 }"""
     
-    chat = get_chat_instance(system_prompt, model_type="fast")
-    msg = UserMessage(text=f"Parse this CV:\n\n{raw_text[:15000]}")  # Limit for context
-    response = await chat.send_message(msg)
-    
-    return safe_parse_json(response, {
-        "contact_info": {},
-        "sections": []
-    })
+    try:
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"Parse this CV:\n\n{raw_text[:15000]}")  # Limit for context
+        response = await chat.send_message(msg)
+        
+        return safe_parse_json(response, {
+            "contact_info": {},
+            "sections": []
+        })
+    except Exception as e:
+        logger.warning(f"AI parsing failed, using basic parser: {e}")
+        return basic_parse_cv_sections(raw_text)
 
 @api_router.post("/cv/upload")
 async def upload_cv(file: UploadFile = File(...)):
