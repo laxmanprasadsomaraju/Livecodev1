@@ -5912,17 +5912,45 @@ class CompanyResearchResponse(BaseModel):
 
 # Helper functions for CV parsing
 def extract_text_from_pdf(file_content: bytes) -> str:
-    """Extract text from PDF using pdfplumber"""
+    """Extract text from PDF using multiple methods for better accuracy"""
     import pdfplumber
     import io
     
     text_parts = []
-    with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-        for page in pdf.pages:
+    
+    # Method 1: pdfplumber (best for most CVs)
+    try:
+        with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+            for page in pdf.pages:
+                # Try extract_text with layout preservation
+                page_text = page.extract_text(layout=True)
+                if not page_text:
+                    # Fallback to simple extraction
+                    page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+        
+        if text_parts:
+            return "\n".join(text_parts)
+    except Exception as e:
+        logger.warning(f"pdfplumber extraction failed: {e}")
+    
+    # Method 2: PyPDF2 fallback
+    try:
+        import PyPDF2
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+        for page in pdf_reader.pages:
             page_text = page.extract_text()
             if page_text:
                 text_parts.append(page_text)
-    return "\n".join(text_parts)
+        
+        if text_parts:
+            return "\n".join(text_parts)
+    except Exception as e:
+        logger.warning(f"PyPDF2 extraction failed: {e}")
+    
+    # If all methods fail
+    return ""
 
 def extract_text_from_docx(file_content: bytes) -> str:
     """Extract text from DOCX using python-docx"""
