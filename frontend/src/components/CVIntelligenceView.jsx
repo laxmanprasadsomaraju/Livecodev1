@@ -1065,43 +1065,71 @@ const CVIntelligenceView = () => {
               </div>
             </div>
 
-            {/* RAW DOCUMENT VIEW */}
+            {/* RAW DOCUMENT VIEW - EXACT PDF/WORD STYLE */}
             {viewMode === "raw" && (
               <div className="glass-light rounded-xl p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Full CV Document</h3>
-                    <p className="text-white/50 text-sm">Select any text to get AI suggestions</p>
+                    <h3 className="text-lg font-semibold text-white mb-1">Full CV Document</h3>
+                    <p className="text-white/50 text-sm">Exact view as uploaded • Select text for AI suggestions</p>
                   </div>
-                  <div className="text-white/40 text-xs">
-                    <FileText className="w-4 h-4 inline mr-1" />
-                    {cvData.total_lines} lines
+                  <div className="flex items-center gap-3">
+                    <div className="text-white/60 text-xs flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      {cvData.total_lines} lines
+                    </div>
+                    <div className="text-white/60 text-xs flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      {cvData.file_type?.toUpperCase()}
+                    </div>
                   </div>
                 </div>
                 
-                {/* Document Container - A4 Page Style */}
-                <div className="bg-white rounded-lg shadow-2xl p-12 max-w-4xl mx-auto" style={{minHeight: '297mm'}}>
+                {/* Document Viewer - A4 Page Simulation */}
+                <div className="bg-slate-700 rounded-xl p-8 shadow-inner">
+                  {/* A4 Page Container with Shadow */}
                   <div 
-                    className="text-gray-900 text-base leading-relaxed select-text"
+                    className="bg-white rounded-sm shadow-2xl mx-auto"
                     style={{
-                      fontFamily: 'Georgia, serif',
-                      wordWrap: 'break-word',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word'
-                    }}
-                    onMouseUp={(e) => {
-                      const selection = window.getSelection();
-                      const text = selection.toString().trim();
-                      if (text) {
-                        setSelectedText(text);
-                        const range = selection.getRangeAt(0);
-                        const rect = range.getBoundingClientRect();
-                        setSelectionPosition({ x: rect.right, y: rect.bottom });
-                      }
+                      width: '210mm',
+                      minHeight: '297mm',
+                      maxWidth: '100%',
+                      padding: '25mm 20mm',
+                      boxShadow: '0 0 50px rgba(0,0,0,0.5)'
                     }}
                   >
-                    {cvData.raw_text}
+                    <div 
+                      className="text-black text-base leading-7 select-text"
+                      style={{
+                        fontFamily: 'Times New Roman, serif',
+                        fontSize: '12pt',
+                        wordWrap: 'break-word',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'normal',
+                        overflowWrap: 'anywhere'
+                      }}
+                      onMouseUp={(e) => {
+                        const selection = window.getSelection();
+                        const text = selection.toString().trim();
+                        if (text && text.length > 3) {
+                          setSelectedText(text);
+                          const range = selection.getRangeAt(0);
+                          const rect = range.getBoundingClientRect();
+                          setSelectionPosition({ x: rect.right, y: rect.bottom });
+                        }
+                      }}
+                    >
+                      {cvData.raw_text.split('\n').map((line, idx) => (
+                        <div key={idx} style={{marginBottom: line.trim() ? '0.3em' : '0.6em'}}>
+                          {line || '\u00A0'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Document Info Footer */}
+                  <div className="mt-4 text-center text-white/40 text-xs">
+                    This is the exact text extracted from your uploaded document
                   </div>
                 </div>
               </div>
