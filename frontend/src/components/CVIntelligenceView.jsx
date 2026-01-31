@@ -9,7 +9,7 @@ import {
   Mic, MicOff, Send, Timer, CheckCircle2,
   Calendar, Route, ChevronDown, ChevronUp, PlayCircle,
   HelpCircle, Users, ArrowLeft, Plus, RotateCcw, 
-  Newspaper, Trophy, Info
+  Newspaper, Trophy, Info, Trash2, Merge, PlusCircle
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -26,6 +26,7 @@ const SECTION_ICONS = {
   projects: Lightbulb,
   summary: User,
   certifications: Award,
+  achievements: Trophy,
   other: FileText
 };
 
@@ -37,6 +38,7 @@ const SECTION_COLORS = {
   projects: "from-orange-500/20 to-amber-500/20 border-orange-500/30",
   summary: "from-cyan-500/20 to-teal-500/20 border-cyan-500/30",
   certifications: "from-yellow-500/20 to-lime-500/20 border-yellow-500/30",
+  achievements: "from-pink-500/20 to-rose-500/20 border-pink-500/30",
   other: "from-gray-500/20 to-slate-500/20 border-gray-500/30"
 };
 
@@ -45,6 +47,17 @@ const STAGE_INFO = {
   technical: { name: "Technical Round", icon: Code, color: "text-green-400", bg: "bg-green-500/20" },
   hiring_manager: { name: "Hiring Manager", icon: Briefcase, color: "text-purple-400", bg: "bg-purple-500/20" }
 };
+
+const SECTION_TYPES = [
+  { value: "experience", label: "Experience" },
+  { value: "education", label: "Education" },
+  { value: "skills", label: "Skills" },
+  { value: "projects", label: "Projects" },
+  { value: "summary", label: "Summary" },
+  { value: "certifications", label: "Certifications" },
+  { value: "achievements", label: "Achievements" },
+  { value: "other", label: "Other" }
+];
 
 const CVIntelligenceView = () => {
   // State management
