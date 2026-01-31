@@ -6218,6 +6218,231 @@ RESPOND WITH VALID JSON:
 @api_router.post("/cv/chat-about-change")
 async def chat_about_cv_change(request: dict):
     """Chat with AI about specific CV changes"""
+
+# ========== REMOTION AI VIDEO GENERATOR ==========
+
+class RemotionVideoRequest(BaseModel):
+    user_prompt: str
+    conversation_history: List[Dict[str, str]] = []
+    video_requirements: Optional[Dict] = None
+
+class RemotionCodeResponse(BaseModel):
+    code: str
+    explanation: str
+    agent_thoughts: List[Dict[str, str]]
+    video_config: Dict
+    preview_url: Optional[str] = None
+
+@api_router.post("/remotion/generate-code", response_model=RemotionCodeResponse)
+async def generate_remotion_code(request: RemotionVideoRequest):
+    """Multi-agent Remotion code generation"""
+    try:
+        # Agent 1: Requirements Analyzer (Claude)
+        requirements_prompt = """You are a Remotion video requirements analyzer.
+        
+Analyze the user's video request and extract:
+1. Video type (animation, text reveal, transitions, etc.)
+2. Duration needed
+3. Visual style
+4. Key elements
+5. Animation patterns
+
+RESPOND WITH JSON:
+{
+    "video_type": "text animation",
+    "duration_seconds": 5,
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "key_elements": ["title", "subtitle", "background"],
+    "animations_needed": ["fade in", "scale", "slide"],
+    "style": "modern, minimalist"
+}"""
+        
+        chat1 = get_chat_instance(requirements_prompt, model_type="fast")
+        msg1 = UserMessage(text=f"User wants: {request.user_prompt}")
+        requirements = await chat1.send_message(msg1)
+        reqs_data = safe_parse_json(requirements, {})
+        
+        # Agent 2: Code Architect (GPT)
+        architect_prompt = """You are a Remotion code architect.
+        
+Based on requirements, create the COMPLETE Remotion component structure.
+
+RULES:
+1. Use proper Remotion hooks: useCurrentFrame, useVideoConfig
+2. Use interpolate() for smooth animations
+3. Use spring() for natural animations
+4. Use <Sequence> for timing
+5. Use <AbsoluteFill> for layouts
+6. Include ALL imports
+7. Make it production-ready
+
+RESPOND WITH JSON:
+{
+    "component_structure": "Description of components",
+    "hooks_needed": ["useCurrentFrame", "interpolate"],
+    "sequences": ["intro", "main", "outro"],
+    "code_outline": "Pseudocode outline"
+}"""
+        
+        chat2 = get_chat_instance(architect_prompt, model_type="fast")
+        msg2 = UserMessage(text=f"Requirements: {json.dumps(reqs_data)}")
+        architecture = await chat2.send_message(msg2)
+        arch_data = safe_parse_json(architecture, {})
+        
+        # Agent 3: Code Generator (Gemini)
+        generator_prompt = """You are a Remotion React code generator.
+        
+Generate COMPLETE, WORKING Remotion code.
+
+CRITICAL REQUIREMENTS:
+1. Import all necessary Remotion components
+2. Use TypeScript
+3. Include proper types
+4. Add comments for clarity
+5. Make animations smooth
+6. Handle edge cases
+7. Code must be READY TO RUN
+
+Template structure:
+```tsx
+import {AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Sequence} from 'remotion';
+
+export const MyVideo: React.FC = () => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  
+  // Your animations here
+  
+  return (
+    <AbsoluteFill>
+      {/* Your content */}
+    </AbsoluteFill>
+  );
+};
+```
+
+RESPOND WITH VALID JSON:
+{
+    "code": "Complete TypeScript React code",
+    "explanation": "How the code works",
+    "key_animations": ["animation 1", "animation 2"]
+}"""
+        
+        chat3 = get_chat_instance(generator_prompt, model_type="fast")
+        msg3 = UserMessage(text=f"""Requirements: {json.dumps(reqs_data)}
+Architecture: {json.dumps(arch_data)}
+
+User prompt: {request.user_prompt}
+
+Generate complete Remotion code.""")
+        
+        code_result = await chat3.send_message(msg3)
+        code_data = safe_parse_json(code_result, {"code": "// Error generating code", "explanation": "Failed"})
+        
+        # Agent 4: Code Reviewer (Claude)
+        reviewer_prompt = """You are a Remotion code reviewer.
+        
+Review the generated code for:
+1. Remotion best practices
+2. Performance issues
+3. Animation smoothness
+4. Code quality
+5. Potential bugs
+
+Suggest improvements if needed.
+
+RESPOND WITH JSON:
+{
+    "review": "Code quality assessment",
+    "issues": ["Issue 1", "Issue 2"],
+    "suggestions": ["Suggestion 1"],
+    "approved": true/false,
+    "improved_code": "Improved version if needed (or null)"
+}"""
+        
+        chat4 = get_chat_instance(reviewer_prompt, model_type="fast")
+        msg4 = UserMessage(text=f"Review this Remotion code:\n\n{code_data.get('code', '')}")
+        review = await chat4.send_message(msg4)
+        review_data = safe_parse_json(review, {})
+        
+        # Use improved code if available
+        final_code = review_data.get('improved_code') if review_data.get('improved_code') else code_data.get('code', '')
+        
+        # Build agent thoughts trail
+        agent_thoughts = [
+            {"agent": "Requirements Analyzer (Claude)", "output": json.dumps(reqs_data, indent=2)},
+            {"agent": "Code Architect (GPT)", "output": json.dumps(arch_data, indent=2)},
+            {"agent": "Code Generator (Gemini)", "output": code_data.get('explanation', '')},
+            {"agent": "Code Reviewer (Claude)", "output": review_data.get('review', '')}
+        ]
+        
+        return RemotionCodeResponse(
+            code=final_code,
+            explanation=code_data.get('explanation', ''),
+            agent_thoughts=agent_thoughts,
+            video_config={
+                "width": reqs_data.get('width', 1920),
+                "height": reqs_data.get('height', 1080),
+                "fps": reqs_data.get('fps', 30),
+                "durationInFrames": int(reqs_data.get('duration_seconds', 5) * reqs_data.get('fps', 30))
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Remotion code generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/remotion/refine-code")
+async def refine_remotion_code(request: dict):
+    """Refine Remotion code based on user feedback"""
+    try:
+        current_code = request.get('current_code', '')
+        user_feedback = request.get('user_feedback', '')
+        
+        system_prompt = """You are a Remotion code refinement expert.
+        
+The user has feedback on the generated Remotion code. Modify the code based on their feedback.
+
+KEEP:
+- Overall structure if not mentioned
+- Working animations
+- Proper Remotion patterns
+
+CHANGE:
+- Whatever the user asks for
+- Fix any issues mentioned
+
+RESPOND WITH JSON:
+{
+    "refined_code": "Updated complete code",
+    "changes_made": "List of changes",
+    "explanation": "Why these changes improve the video"
+}"""
+        
+        chat = get_chat_instance(system_prompt, model_type="fast")
+        msg = UserMessage(text=f"""Current code:
+{current_code}
+
+User feedback: {user_feedback}
+
+Refine the code based on feedback.""")
+        
+        response = await chat.send_message(msg)
+        result = safe_parse_json(response, {
+            "refined_code": current_code,
+            "changes_made": "No changes",
+            "explanation": "Error refining"
+        })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Remotion code refinement error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
     try:
         selected_text = request.get('selected_text', '')
         user_message = request.get('user_message', '')
