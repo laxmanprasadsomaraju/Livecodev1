@@ -449,21 +449,24 @@ const RemotionStudioView = () => {
               
               {showAgentThoughts && (
                 <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto">
-                  {agentThoughts.map((thought, idx) => (
-                    <div 
-                      key={idx}
-                      className={`p-3 rounded-lg bg-gradient-to-br ${agents[idx]?.color || 'from-gray-500 to-gray-600'}/10 border border-white/5`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        {agents[idx] && <agents[idx].icon className="w-4 h-4" />}
-                        <span className="text-xs font-semibold text-white/80">{thought.agent}</span>
+                  {agentThoughts.map((thought, idx) => {
+                    const AgentIcon = agents[idx]?.icon || Brain;
+                    return (
+                      <div 
+                        key={idx}
+                        className={`p-3 rounded-lg bg-gradient-to-br ${agents[idx]?.color || 'from-gray-500 to-gray-600'}/10 border border-white/5`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <AgentIcon className="w-4 h-4" />
+                          <span className="text-xs font-semibold text-white/80">{thought.agent}</span>
+                        </div>
+                        <pre className="text-xs text-white/60 whitespace-pre-wrap overflow-x-auto font-mono">
+                          {thought.output.substring(0, 500)}
+                          {thought.output.length > 500 && '...'}
+                        </pre>
                       </div>
-                      <pre className="text-xs text-white/60 whitespace-pre-wrap overflow-x-auto font-mono">
-                        {thought.output.substring(0, 500)}
-                        {thought.output.length > 500 && '...'}
-                      </pre>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
