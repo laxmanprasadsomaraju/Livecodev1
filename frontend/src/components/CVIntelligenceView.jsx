@@ -1198,7 +1198,8 @@ const CVIntelligenceView = () => {
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({
                                     cv_id: cvData.cv_id,
-                                    raw_text: cvData.raw_text
+                                    raw_text: cvData.raw_text,
+                                    file_type: cvData.file_type || 'txt'
                                   })
                                 });
                                 const data = await response.json();
