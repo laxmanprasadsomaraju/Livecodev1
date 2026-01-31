@@ -90,11 +90,13 @@ const CVIntelligenceView = () => {
   const [selectedSections, setSelectedSections] = useState([]);  // For merging
   
   // Raw view state
-  const [viewMode, setViewMode] = useState("sections"); // sections or raw
+  const [viewMode, setViewMode] = useState("sections"); // sections or raw or ai-compare
   const [selectedText, setSelectedText] = useState("");
   const [selectionPosition, setSelectionPosition] = useState(null);
   const [aiPopupSuggestion, setAiPopupSuggestion] = useState(null);
   const [isGettingAISuggestion, setIsGettingAISuggestion] = useState(false);
+  const [aiImprovedCV, setAiImprovedCV] = useState(null);
+  const [isGeneratingAIView, setIsGeneratingAIView] = useState(false);
   
   // Interview state
   const [interviewSession, setInterviewSession] = useState(null);
