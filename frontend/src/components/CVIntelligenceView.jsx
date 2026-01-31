@@ -1146,8 +1146,254 @@ const CVIntelligenceView = () => {
               </div>
             )}
 
-            {/* AI COMPARISON VIEW - PROFESSIONAL DIFF VIEW */}
+            {/* AI COMPARISON VIEW - LATEX EDITOR STYLE */}
             {viewMode === "ai-compare" && (
+              <div className="space-y-4">
+                {isGeneratingAIView ? (
+                  <div className="glass-light rounded-xl p-12 text-center">
+                    <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-4" />
+                    <p className="text-white mb-2">Converting to LaTeX and analyzing improvements...</p>
+                    <p className="text-white/50 text-sm">This may take a moment</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Top Control Bar */}
+                    <div className="glass-light rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-white font-semibold flex items-center gap-2">
+                            <Code className="w-5 h-5 text-indigo-400" />
+                            LaTeX CV Editor
+                          </h3>
+                          <Button
+                            onClick={() => {
+                              setIsCompiling(true);
+                              setTimeout(() => {
+                                setCompiledView(latexCode);
+                                setIsCompiling(false);
+                                toast.success("LaTeX compiled!");
+                              }, 1000);
+                            }}
+                            disabled={isCompiling}
+                            className="bg-gradient-to-r from-green-500 to-emerald-500"
+                          >
+                            {isCompiling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                            Compile LaTeX
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/60 text-sm">{latexChanges.length} improvements suggested</span>
+                          <Button
+                            onClick={async () => {
+                              setLatexCode("");
+                              setLatexChanges([]);
+                              setIsGeneratingAIView(true);
+                              try {
+                                const response = await fetch(`${BACKEND_URL}/api/cv/convert-to-latex`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    cv_id: cvData.cv_id,
+                                    raw_text: cvData.raw_text
+                                  })
+                                });
+                                const data = await response.json();
+                                setLatexCode(data.latex_code || "");
+                                setLatexChanges(data.changes_made || []);
+                                setChangesSummary(data.summary || "");
+                              } catch (error) {
+                                toast.error("Failed to convert to LaTeX");
+                              } finally {
+                                setIsGeneratingAIView(false);
+                              }
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="border-white/20"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Regenerate
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Changes Summary Card */}
+                    {changesSummary && (
+                      <div className="glass-light rounded-xl p-4 border-l-4 border-indigo-500">
+                        <div className="flex items-start gap-3">
+                          <Sparkles className="w-5 h-5 text-indigo-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <h4 className="text-white font-medium mb-2">AI Improvements Summary</h4>
+                            <p className="text-white/70 text-sm leading-relaxed">{changesSummary}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Main Editor Layout */}
+                    <div className="grid lg:grid-cols-2 gap-6">
+                      
+                      {/* LEFT: LaTeX Code Editor */}
+                      <div className="glass-light rounded-xl overflow-hidden flex flex-col" style={{height: '900px'}}>
+                        <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-4 border-b border-white/10">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Code className="w-5 h-5 text-blue-400" />
+                              <div>
+                                <h3 className="text-white font-semibold">LaTeX Source Code</h3>
+                                <p className="text-white/50 text-xs">Click line numbers to see change explanations</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-hidden">
+                          <Textarea
+                            value={latexCode}
+                            onChange={(e) => setLatexCode(e.target.value)}
+                            className="h-full bg-slate-900 border-0 text-green-400 font-mono text-sm resize-none"
+                            style={{fontFamily: 'Monaco, Consolas, monospace'}}
+                            placeholder="LaTeX code will appear here..."
+                          />
+                        </div>
+                      </div>
+
+                      {/* RIGHT: Compiled View + Changes List */}
+                      <div className="space-y-4" style={{height: '900px', overflow: 'auto'}}>
+                        
+                        {/* Compiled Document Preview */}
+                        <div className="glass-light rounded-xl overflow-hidden">
+                          <div className="bg-gradient-to-r from-emerald-700 to-green-800 p-4 border-b border-white/10">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-5 h-5 text-emerald-400" />
+                              <div>
+                                <h3 className="text-white font-semibold">Compiled Preview</h3>
+                                <p className="text-white/50 text-xs">How your CV will look</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-6 bg-slate-800">
+                            <div className="bg-white rounded-lg shadow-2xl p-8 max-h-[400px] overflow-y-auto">
+                              <div 
+                                className="text-black text-sm leading-6"
+                                style={{fontFamily: 'Times New Roman, serif', whiteSpace: 'pre-wrap'}}
+                              >
+                                {compiledView || latexCode.replace(/\\[a-z]+{([^}]*)}/g, '$1').replace(/[\\{}%]/g, '') || "Click 'Compile LaTeX' to preview"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Changes List with Interaction */}
+                        <div className="glass-light rounded-xl p-4">
+                          <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-yellow-400" />
+                            AI-Suggested Changes ({latexChanges.length})
+                          </h4>
+                          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                            {latexChanges.map((change, idx) => (
+                              <div 
+                                key={idx}
+                                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:border-indigo-500/50 cursor-pointer transition-all"
+                                onClick={() => {
+                                  setSelectedChange(change);
+                                  setChangeChatOpen(true);
+                                  setChangeChatMessages([{
+                                    role: 'assistant',
+                                    content: `Change #${idx + 1}: ${change.reason}`
+                                  }]);
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <span className="text-white/40 text-xs">Line {change.line_number || idx + 1}</span>
+                                  <div className="flex gap-1">
+                                    <button className="p-1 rounded hover:bg-green-500/20 transition-colors">
+                                      <CheckCircle className="w-4 h-4 text-green-400" />
+                                    </button>
+                                    <button className="p-1 rounded hover:bg-red-500/20 transition-colors">
+                                      <XCircle className="w-4 h-4 text-red-400" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="text-red-300 text-xs line-through">{change.original?.substring(0, 60)}...</div>
+                                  <div className="text-green-300 text-xs font-medium">{change.improved?.substring(0, 60)}...</div>
+                                  <p className="text-white/60 text-xs mt-1">{change.reason}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Change Discussion Modal */}
+                    {changeChatOpen && selectedChange && (
+                      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                        <div className="glass-light rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] flex flex-col">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white font-semibold flex items-center gap-2">
+                              <MessageSquare className="w-5 h-5 text-blue-400" />
+                              Discuss This Change
+                            </h3>
+                            <button onClick={() => {setChangeChatOpen(false); setChangeChatMessages([]);}} className="text-white/40 hover:text-white">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          {/* Change Preview */}
+                          <div className="p-4 rounded-lg bg-white/5 border border-white/10 mb-4">
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-white/40 text-xs">Original:</span>
+                                <p className="text-red-300 text-sm">{selectedChange.original}</p>
+                              </div>
+                              <ArrowRight className="w-4 h-4 text-white/40" />
+                              <div>
+                                <span className="text-white/40 text-xs">Improved:</span>
+                                <p className="text-green-300 text-sm">{selectedChange.improved}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Chat Messages */}
+                          <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                            {changeChatMessages.map((msg, idx) => (
+                              <div key={idx} className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-indigo-500/20 ml-8' : 'bg-white/5 mr-8'}`}>
+                                <p className="text-white text-sm">{msg.content}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Chat Input */}
+                          <div className="flex gap-3">
+                            <input
+                              type="text"
+                              value={changeChatInput}
+                              onChange={(e) => setChangeChatInput(e.target.value)}
+                              placeholder="Ask AI about this change..."
+                              className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && changeChatInput.trim()) {
+                                  const userMsg = {role: 'user', content: changeChatInput};
+                                  setChangeChatMessages([...changeChatMessages, userMsg, {role: 'assistant', content: 'Let me explain that change in more detail...'}]);
+                                  setChangeChatInput('');
+                                }
+                              }}
+                            />
+                            <Button className="bg-gradient-to-r from-indigo-500 to-purple-500">
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
               <div className="space-y-4">
                 {isGeneratingAIView ? (
                   <div className="glass-light rounded-xl p-12 text-center">
