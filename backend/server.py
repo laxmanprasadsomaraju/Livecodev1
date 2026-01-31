@@ -6225,6 +6225,8 @@ class RemotionVideoRequest(BaseModel):
     user_prompt: str
     conversation_history: List[Dict[str, str]] = []
     video_requirements: Optional[Dict] = None
+    custom_api_key: Optional[str] = None  # Custom LLM key (Emergent or direct)
+    model_provider: str = "gemini"  # gemini, openai, or anthropic
 
 class RemotionCodeResponse(BaseModel):
     code: str
@@ -6232,6 +6234,82 @@ class RemotionCodeResponse(BaseModel):
     agent_thoughts: List[Dict[str, str]]
     video_config: Dict
     preview_url: Optional[str] = None
+
+def get_remotion_chat_instance(system_message: str, custom_key: str = None, provider: str = "gemini"):
+    """Get chat instance for Remotion with optional custom key"""
+    api_key = custom_key if custom_key else EMERGENT_LLM_KEY
+    session_id = str(uuid.uuid4())
+    
+    # Model selection based on provider
+    model_map = {
+        "gemini": ("gemini", "gemini-2.0-flash-exp"),
+        "openai": ("openai", "gpt-4o"),
+        "anthropic": ("anthropic", "claude-sonnet-4-20250514")
+    }
+    
+    provider_name, model_name = model_map.get(provider, model_map["gemini"])
+    
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=session_id,
+        system_message=system_message
+    ).with_model(provider_name, model_name)
+    
+    return chat
+
+@api_router.post("/remotion/enhance-prompt")
+async def enhance_remotion_prompt(request: dict):
+    """Enhance user's video description prompt using Claude"""
+    try:
+        user_prompt = request.get('prompt', '')
+        custom_key = request.get('custom_api_key', None)
+        
+        if not user_prompt.strip():
+            raise HTTPException(status_code=400, detail="Prompt is required")
+        
+        enhance_system = """You are a Remotion video prompt expert. Your job is to enhance and expand user prompts to create better video animations.
+
+Take the user's simple description and expand it into a detailed, production-ready video specification.
+
+Consider:
+1. Animation types (fade, scale, slide, spring, parallax)
+2. Timing and duration
+3. Colors and gradients
+4. Typography and fonts
+5. Layout and composition
+6. Transitions and sequences
+7. Special effects (glow, blur, particles)
+
+RESPOND WITH JSON:
+{
+    "enhanced_prompt": "The detailed, enhanced prompt",
+    "suggestions": ["Additional idea 1", "Additional idea 2"],
+    "estimated_duration": 5,
+    "complexity": "simple/medium/complex"
+}"""
+        
+        api_key = custom_key if custom_key else EMERGENT_LLM_KEY
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=str(uuid.uuid4()),
+            system_message=enhance_system
+        ).with_model("gemini", "gemini-2.0-flash-exp")
+        
+        msg = UserMessage(text=f"Enhance this video prompt: {user_prompt}")
+        response = await chat.send_message(msg)
+        
+        result = safe_parse_json(response, {
+            "enhanced_prompt": user_prompt,
+            "suggestions": [],
+            "estimated_duration": 5,
+            "complexity": "medium"
+        })
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Prompt enhancement error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/remotion/generate-code", response_model=RemotionCodeResponse)
 async def generate_remotion_code(request: RemotionVideoRequest):
