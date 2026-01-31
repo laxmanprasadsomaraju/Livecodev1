@@ -570,6 +570,7 @@ const CVIntelligenceView = () => {
       const formData = new FormData();
       formData.append('company_name', companyName);
       formData.append('target_role', targetRole || 'General');
+      formData.append('deep_research', deepResearch ? 'true' : 'false');
 
       const response = await fetch(`${BACKEND_URL}/api/cv/company-research`, {
         method: 'POST',
