@@ -1860,6 +1860,9 @@ Python, JavaScript, React, FastAPI, PostgreSQL, AWS"""
             self.test_cv_interview_if_i_were_you,
             self.test_cv_interview_session_summary,
             self.test_cv_learning_roadmap,
+            # REMOTION AI VIDEO GENERATOR - CURRENT FOCUS
+            self.test_remotion_generate_code,
+            self.test_remotion_refine_code,
             # NEW MOLTBOT INTEGRATION - HIGH PRIORITY
             self.test_video_transcript,
             self.test_video_contextual_help,
