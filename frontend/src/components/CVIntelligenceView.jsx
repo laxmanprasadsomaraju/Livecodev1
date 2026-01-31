@@ -101,6 +101,10 @@ const CVIntelligenceView = () => {
   
   // Interview state
   const [interviewSession, setInterviewSession] = useState(null);
+  const [customRoles, setCustomRoles] = useState([]);
+  const [isAddingRole, setIsAddingRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [currentInterviewStage, setCurrentInterviewStage] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
   const [answerText, setAnswerText] = useState("");
