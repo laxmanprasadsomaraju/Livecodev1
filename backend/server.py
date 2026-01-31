@@ -6293,7 +6293,7 @@ RESPOND WITH JSON:
             api_key=api_key,
             session_id=str(uuid.uuid4()),
             system_message=enhance_system
-        ).with_model("gemini", "gemini-2.0-flash-exp")
+        ).with_model("gemini", "gemini-3-flash-preview")
         
         msg = UserMessage(text=f"Enhance this video prompt: {user_prompt}")
         response = await chat.send_message(msg)
