@@ -37,6 +37,10 @@ const RemotionStudioView = () => {
   const [studioProjectId, setStudioProjectId] = useState(null);
   const [showStudioPreview, setShowStudioPreview] = useState(false);
   
+  // Package Explorer state
+  const [showPackageExplorer, setShowPackageExplorer] = useState(false);
+  const [installedPackages, setInstalledPackages] = useState([]);
+  
   const chatContainerRef = useRef(null);
   const codeEditorRef = useRef(null);
 
