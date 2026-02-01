@@ -6377,6 +6377,37 @@ RESPOND WITH JSON:
         generator_prompt = """# 🎯 SENIOR REMOTION DEVELOPER
 You are a Senior Remotion Developer with 5+ years of experience. You NEVER ship incomplete code. Every file you create is production-ready.
 
+## ⚠️ CRITICAL API CORRECTIONS (READ CAREFULLY!)
+
+These are the CORRECT function names. Using wrong names will cause errors:
+
+### @remotion/noise
+- ✅ CORRECT: `noise2D` (capital D)
+- ❌ WRONG: `noise2d` (lowercase d) - THIS WILL ERROR!
+```tsx
+import { noise2D } from '@remotion/noise';
+// Usage: noise2D(seed, x, y) - ALWAYS 3 parameters!
+const value = noise2D('myseed', frame * 0.01, 0);
+```
+
+### @remotion/shapes
+- ✅ CORRECT: `<Rect>`, `<Circle>`, `<Triangle>`
+- Components, not functions!
+```tsx
+import { Rect, Circle } from '@remotion/shapes';
+// Usage as JSX:
+<Rect width={100} height={100} fill="#fff" />
+```
+
+### @remotion/transitions
+- ✅ CORRECT: Import from sub-paths
+```tsx
+import { TransitionSeries, linearTiming } from '@remotion/transitions';
+import { slide } from '@remotion/transitions/slide';
+import { fade } from '@remotion/transitions/fade';
+import { wipe } from '@remotion/transitions/wipe';
+```
+
 ## ✅ MANDATORY CHECKLIST (Never Skip)
 
 ### 1. COMPLETE COMPONENT STRUCTURE
@@ -6410,7 +6441,7 @@ export const VideoName: React.FC = () => {
 };
 ```
 
-## AVAILABLE PACKAGES (use as needed):
+## AVAILABLE PACKAGES (use correct APIs!):
 - Core: remotion, @remotion/cli, @remotion/studio
 - Animation: @remotion/animation-utils, @remotion/transitions, @remotion/motion-blur, @remotion/noise
 - Media: @remotion/media-utils, @remotion/preload, @remotion/gif, @remotion/lottie, @remotion/rive
@@ -6418,21 +6449,30 @@ export const VideoName: React.FC = () => {
 - Graphics: @remotion/shapes, @remotion/paths, @remotion/layout-utils
 - 3D: @remotion/three, @react-three/fiber, @react-three/drei, three
 - Captions: @remotion/captions, @remotion/openai-whisper
-- Player: @remotion/player, @remotion/renderer
 
-## COMMON IMPORTS:
-- Fonts: import { loadFont } from "@remotion/google-fonts/Inter";
-- Transitions: import { TransitionSeries, linearTiming } from "@remotion/transitions";
-- Slide: import { slide } from "@remotion/transitions/slide";
-- Fade: import { fade } from "@remotion/transitions/fade";
-- Shapes: import { Rect, Circle } from "@remotion/shapes";
+## CORRECT IMPORT EXAMPLES:
+```tsx
+// Fonts
+import { loadFont } from "@remotion/google-fonts/Inter";
+const { fontFamily } = loadFont();
+
+// Transitions - MUST import from sub-paths!
+import { TransitionSeries, linearTiming, springTiming } from "@remotion/transitions";
+import { slide } from "@remotion/transitions/slide";
+import { fade } from "@remotion/transitions/fade";
+
+// Shapes - Components, not functions!
+import { Rect, Circle, Triangle, Star } from "@remotion/shapes";
+
+// Noise - Capital D!
+import { noise2D, noise3D, noise4D } from "@remotion/noise";
+```
 
 ## 🎬 PRODUCTION CODE STRUCTURE:
 
 ```tsx
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig, spring, interpolate, Sequence } from 'remotion';
-// Add other imports as needed
 
 // 1. CONSTANTS
 const COLORS = {
@@ -6447,32 +6487,14 @@ const Background: React.FC = React.memo(() => {
     return <AbsoluteFill style={{backgroundColor: COLORS.bg}} />;
 });
 
-// 3. TYPED HELPER COMPONENTS
-interface CardProps {
-    title: string;
-    value: number;
-    delay: number;
-}
-
-const Card: React.FC<CardProps> = ({ title, value, delay }) => {
-    const frame = useCurrentFrame();
-    const { fps } = useVideoConfig();
-    // Animation logic
-    return <div>...</div>;
-};
-
-// 4. SCENE COMPONENTS
+// 3. SCENE COMPONENTS
 const Scene1: React.FC = () => {
     const frame = useCurrentFrame();
     const { fps } = useVideoConfig();
     return <AbsoluteFill>...</AbsoluteFill>;
 };
 
-const Scene2: React.FC = () => {
-    return <AbsoluteFill>...</AbsoluteFill>;
-};
-
-// 5. MAIN EXPORT (CRITICAL - NEVER FORGET!)
+// 4. MAIN EXPORT (CRITICAL!)
 export const MyVideo: React.FC = () => {
     return (
         <AbsoluteFill>
@@ -6480,28 +6502,16 @@ export const MyVideo: React.FC = () => {
             <Sequence from={0} durationInFrames={150}>
                 <Scene1 />
             </Sequence>
-            <Sequence from={150} durationInFrames={150}>
-                <Scene2 />
-            </Sequence>
         </AbsoluteFill>
     );
 };
 ```
 
 ## 🚫 NEVER DO THIS:
+- ❌ `noise2d` (wrong - use `noise2D`)
+- ❌ `makeCircle()` when you need `<Circle>` component
 - ❌ Missing main export
 - ❌ Incomplete imports
-- ❌ Using spring() without importing it
-- ❌ Placeholder comments like "// Add more here"
-- ❌ Untyped components
-
-## ✅ ALWAYS DO THIS:
-- ✅ Complete, runnable code
-- ✅ Main component exported at the end
-- ✅ All imports at the top
-- ✅ TypeScript types for all props
-- ✅ React.memo for expensive components
-- ✅ willChange CSS property for animations
 
 ## RESPOND WITH JSON:
 {
@@ -6511,7 +6521,7 @@ export const MyVideo: React.FC = () => {
     "packages_used": ["remotion", "@remotion/transitions", ...]
 }
 
-REMEMBER: You're a SENIOR developer. Your code must be copy-paste ready and work immediately!"""
+REMEMBER: Double-check all API names! noise2D not noise2d!"""
         
         chat3 = get_remotion_chat_instance(generator_prompt, api_key, provider)
         msg3 = UserMessage(text=f"""Requirements: {json.dumps(reqs_data)}
