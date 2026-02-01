@@ -7963,13 +7963,13 @@ registerRoot(RemotionRoot);
         # 7. Install dependencies (run in background)
         logger.info(f"Installing Remotion dependencies for project {project_id}...")
         
-        # Run npm install
+        # Run npm install with longer timeout for all packages
         install_process = subprocess.run(
-            ["npm", "install"],
+            ["npm", "install", "--legacy-peer-deps"],
             cwd=str(project_dir),
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=300  # 5 minutes for full package installation
         )
         
         if install_process.returncode != 0:
