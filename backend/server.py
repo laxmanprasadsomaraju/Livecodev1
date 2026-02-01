@@ -7942,7 +7942,8 @@ registerRoot(RemotionRoot);
                 message=f"Remotion Studio failed to start: {stderr[:500]}"
             )
         
-        studio_url = f"http://localhost:{port}"
+        # Return proxy URL instead of localhost
+        studio_url = f"/api/remotion/studio/{project_id}"
         
         return RemotionProjectResponse(
             success=True,
@@ -7966,6 +7967,43 @@ registerRoot(RemotionRoot);
         )
 
 
+@api_router.get("/remotion/studio/{project_id}/{path:path}")
+@api_router.get("/remotion/studio/{project_id}")
+async def proxy_remotion_studio(project_id: str, path: str = ""):
+    """Proxy requests to the Remotion Studio"""
+    import httpx
+    
+    if project_id not in remotion_processes:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    info = remotion_processes[project_id]
+    port = info["port"]
+    
+    # Check if process is still running
+    if info["process"].poll() is not None:
+        raise HTTPException(status_code=503, detail="Studio is not running")
+    
+    target_url = f"http://localhost:{port}/{path}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(target_url, timeout=30.0)
+            
+            # Get content type
+            content_type = response.headers.get("content-type", "text/html")
+            
+            # Return the proxied response
+            from fastapi.responses import Response
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                media_type=content_type
+            )
+    except httpx.RequestError as e:
+        logger.error(f"Proxy error: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to connect to studio: {str(e)}")
+
+
 @api_router.get("/remotion/project/{project_id}/status")
 async def get_remotion_project_status(project_id: str):
     """Check status of a Remotion project"""
@@ -7979,7 +8017,7 @@ async def get_remotion_project_status(project_id: str):
         return {
             "status": "running",
             "port": info["port"],
-            "studio_url": f"http://localhost:{info['port']}"
+            "studio_url": f"/api/remotion/studio/{project_id}"
         }
     else:
         return {
