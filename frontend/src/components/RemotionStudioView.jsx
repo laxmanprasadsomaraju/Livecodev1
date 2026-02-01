@@ -802,19 +802,17 @@ const RemotionStudioView = () => {
               </div>
             </div>
 
-            {/* Code Content */}
-            <div 
-              ref={codeEditorRef}
-              className="flex-1 overflow-auto p-4 bg-black/40 font-mono text-sm"
-            >
+            {/* Code Editor */}
+            <div className="flex-1 overflow-hidden">
               {generatedCode ? (
-                <pre className="language-tsx whitespace-pre-wrap">
-                  <code className="text-emerald-300/90">
-                    {generatedCode}
-                  </code>
-                </pre>
+                <RemotionCodeEditor
+                  initialCode={generatedCode}
+                  videoConfig={videoConfig}
+                  onCodeChange={(newCode) => setGeneratedCode(newCode)}
+                  projectId={studioProjectId || 'shared'}
+                />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="flex flex-col items-center justify-center h-full text-center py-12 bg-black/40">
                   <Terminal className="w-12 h-12 text-white/20 mb-4" />
                   <p className="text-white/40">
                     Generated Remotion code will appear here
