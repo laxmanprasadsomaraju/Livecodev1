@@ -3,8 +3,9 @@ import {
   Video, Send, Code, Sparkles, Wand2, RefreshCw, Copy, Check, 
   ChevronDown, ChevronUp, Loader2, Play, FileCode, MessageSquare,
   Zap, Brain, Eye, Terminal, Film, Settings, Palette, Key, Sliders,
-  ExternalLink, X, Monitor
+  ExternalLink, X, Monitor, Package
 } from "lucide-react";
+import PackageExplorer from "./PackageExplorer";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
