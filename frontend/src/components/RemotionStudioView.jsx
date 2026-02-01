@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Video, Send, Code, Sparkles, Wand2, RefreshCw, Copy, Check, 
   ChevronDown, ChevronUp, Loader2, Play, FileCode, MessageSquare,
-  Zap, Brain, Eye, Terminal, Film, Settings, Palette, Key, Sliders
+  Zap, Brain, Eye, Terminal, Film, Settings, Palette, Key, Sliders,
+  ExternalLink, X, Monitor
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
