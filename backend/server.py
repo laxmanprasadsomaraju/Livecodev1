@@ -6525,25 +6525,48 @@ Generate complete Remotion code.""")
         code_data = safe_parse_json(code_result, {"code": "// Error generating code", "explanation": "Failed"})
         
         # Agent 4: Code Reviewer
-        reviewer_prompt = """You are a Remotion code reviewer.
-        
-Review the generated code for:
-1. Remotion best practices
-2. Performance issues
-3. Animation smoothness
-4. Code quality
-5. Potential bugs
+        reviewer_prompt = """You are a Senior Remotion Code Reviewer.
 
-Suggest improvements if needed.
+## CRITICAL REVIEW CHECKLIST:
+
+### 1. MAIN EXPORT CHECK (MOST IMPORTANT!)
+- Does the code have `export const ComponentName: React.FC = () => { ... }`?
+- If NO main export → MUST add one!
+
+### 2. IMPORT CHECK
+- Are all used functions imported?
+- spring(), interpolate(), useCurrentFrame(), etc.?
+
+### 3. TYPESCRIPT CHECK
+- All components use React.FC?
+- All props have interfaces?
+
+### 4. PERFORMANCE CHECK
+- React.memo on expensive components?
+- willChange for animated properties?
+
+### 5. CODE QUALITY
+- No placeholder comments?
+- No TODOs?
+- Complete implementation?
+
+## YOUR TASK:
+1. Check if code has main export - if NOT, ADD ONE
+2. Check all imports are present - if NOT, ADD THEM
+3. Fix any TypeScript issues
+4. Return improved code if ANY issues found
 
 RESPOND WITH JSON:
 {
-    "review": "Code quality assessment",
+    "review": "Brief assessment",
+    "has_main_export": true/false,
     "issues": ["Issue 1", "Issue 2"],
     "suggestions": ["Suggestion 1"],
     "approved": true/false,
-    "improved_code": "Improved version if needed (or null)"
-}"""
+    "improved_code": "COMPLETE fixed code if issues found, otherwise null"
+}
+
+IMPORTANT: If the code is missing a main export, you MUST provide improved_code with the export added!"""
         
         chat4 = get_remotion_chat_instance(reviewer_prompt, api_key, provider)
         msg4 = UserMessage(text=f"Review this Remotion code:\n\n{code_data.get('code', '')}")
