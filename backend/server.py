@@ -6547,15 +6547,22 @@ Generate complete Remotion code.""")
 - Are all used functions imported?
 - spring(), interpolate(), useCurrentFrame(), etc.?
 
-### 3. TYPESCRIPT CHECK
+### 3. ⚠️ API NAME CHECK (CRITICAL!)
+Check for these COMMON MISTAKES:
+- ❌ `noise2d` → Fix to `noise2D` (capital D)
+- ❌ `noise3d` → Fix to `noise3D` (capital D)
+- ❌ `noise4d` → Fix to `noise4D` (capital D)
+- ❌ Wrong transition imports → Fix to correct sub-paths
+
+### 4. TYPESCRIPT CHECK
 - All components use React.FC?
 - All props have interfaces?
 
-### 4. PERFORMANCE CHECK
+### 5. PERFORMANCE CHECK
 - React.memo on expensive components?
 - willChange for animated properties?
 
-### 5. CODE QUALITY
+### 6. CODE QUALITY
 - No placeholder comments?
 - No TODOs?
 - Complete implementation?
@@ -6563,20 +6570,24 @@ Generate complete Remotion code.""")
 ## YOUR TASK:
 1. Check if code has main export - if NOT, ADD ONE
 2. Check all imports are present - if NOT, ADD THEM
-3. Fix any TypeScript issues
-4. Return improved code if ANY issues found
+3. FIX any API name typos (noise2d → noise2D, etc.)
+4. Fix any TypeScript issues
+5. Return improved code if ANY issues found
 
 RESPOND WITH JSON:
 {
     "review": "Brief assessment",
     "has_main_export": true/false,
+    "api_issues_found": ["noise2d should be noise2D", ...],
     "issues": ["Issue 1", "Issue 2"],
     "suggestions": ["Suggestion 1"],
     "approved": true/false,
-    "improved_code": "COMPLETE fixed code if issues found, otherwise null"
+    "improved_code": "COMPLETE fixed code if ANY issues found, otherwise null"
 }
 
-IMPORTANT: If the code is missing a main export, you MUST provide improved_code with the export added!"""
+IMPORTANT: 
+- If the code uses `noise2d`, you MUST fix it to `noise2D` in improved_code!
+- If the code is missing a main export, you MUST provide improved_code with the export added!"""
         
         chat4 = get_remotion_chat_instance(reviewer_prompt, api_key, provider)
         msg4 = UserMessage(text=f"Review this Remotion code:\n\n{code_data.get('code', '')}")
