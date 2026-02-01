@@ -29,6 +29,12 @@ const RemotionStudioView = () => {
   const [modelProvider, setModelProvider] = useState("gemini");
   const [isEnhancing, setIsEnhancing] = useState(false);
   
+  // Remotion Studio Preview states
+  const [isSettingUpStudio, setIsSettingUpStudio] = useState(false);
+  const [studioUrl, setStudioUrl] = useState(null);
+  const [studioProjectId, setStudioProjectId] = useState(null);
+  const [showStudioPreview, setShowStudioPreview] = useState(false);
+  
   const chatContainerRef = useRef(null);
   const codeEditorRef = useRef(null);
 
