@@ -7800,23 +7800,76 @@ async def setup_remotion_project(request: RemotionProjectSetup):
         # Create project directories
         src_dir.mkdir(parents=True, exist_ok=True)
         
-        # 1. Create package.json
+        # 1. Create package.json with ALL Remotion packages
         package_json = {
             "name": f"remotion-preview-{project_id}",
             "version": "1.0.0",
             "scripts": {
                 "dev": "remotion studio",
-                "render": f"remotion render {request.component_name} out/video.mp4 --gl=angle"
+                "render": f"remotion render {request.component_name} out/video.mp4 --gl=angle",
+                "build": f"remotion render {request.component_name} out/video.mp4"
             },
             "dependencies": {
+                # Core Remotion
                 "remotion": "^4.0.0",
                 "react": "^18.0.0",
                 "react-dom": "^18.0.0",
-                "@remotion/cli": "^4.0.0"
+                "@remotion/cli": "^4.0.0",
+                
+                # Animation & Effects
+                "@remotion/animation-utils": "^4.0.0",
+                "@remotion/transitions": "^4.0.0",
+                "@remotion/motion-blur": "^4.0.0",
+                "@remotion/noise": "^4.0.0",
+                
+                # Media & Assets
+                "@remotion/media-utils": "^4.0.0",
+                "@remotion/preload": "^4.0.0",
+                "@remotion/gif": "^4.0.0",
+                "@remotion/lottie": "^4.0.0",
+                "@remotion/rive": "^4.0.0",
+                
+                # Typography & Fonts  
+                "@remotion/google-fonts": "^4.0.0",
+                "@remotion/fonts": "^4.0.0",
+                "@remotion/animated-emoji": "^4.0.0",
+                "@remotion/rounded-text-box": "^4.0.0",
+                
+                # Graphics & Shapes
+                "@remotion/shapes": "^4.0.0",
+                "@remotion/paths": "^4.0.0",
+                "@remotion/layout-utils": "^4.0.0",
+                
+                # 3D & Advanced Graphics
+                "@remotion/three": "^4.0.0",
+                "@react-three/fiber": "^8.0.0",
+                "@react-three/drei": "^9.0.0",
+                "three": "^0.160.0",
+                
+                # Captions & Audio
+                "@remotion/captions": "^4.0.0",
+                "@remotion/openai-whisper": "^4.0.0",
+                
+                # Player & Rendering
+                "@remotion/player": "^4.0.0",
+                "@remotion/renderer": "^4.0.0",
+                "@remotion/studio": "^4.0.0",
+                
+                # Media Processing
+                "@remotion/media-parser": "^4.0.0",
+                "@remotion/webcodecs": "^4.0.0",
+                
+                # Styling
+                "@remotion/tailwind": "^4.0.0",
+                
+                # Utilities
+                "@remotion/zod-types": "^4.0.0",
+                "zod": "^3.22.3"
             },
             "devDependencies": {
                 "@types/react": "^18.0.0",
                 "@types/react-dom": "^18.0.0",
+                "@types/three": "^0.160.0",
                 "typescript": "^5.0.0"
             }
         }
