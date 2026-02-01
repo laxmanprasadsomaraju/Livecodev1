@@ -7935,19 +7935,57 @@ Config.setOverwriteOutput(true);
             f.write(remotion_config)
         
         # 4. Write the user's component code
-        with open(src_dir / f"{request.component_name}.tsx", "w") as f:
-            f.write(request.code)
+        # First, check if code has a proper export, if not wrap it
+        code = request.code
+        
+        # Try to find exported component name
+        import re
+        export_match = re.search(r'export\s+(?:const|function)\s+(\w+)', code)
+        
+        if export_match:
+            actual_component_name = export_match.group(1)
+        else:
+            # No export found - need to wrap the code or add export
+            # Check if there's a const ComponentName = ... without export
+            const_match = re.search(r'const\s+(\w+)\s*:\s*React\.FC', code)
+            if const_match:
+                # Add export to the existing component
+                component_to_export = const_match.group(1)
+                code = code.replace(f'const {component_to_export}', f'export const {component_to_export}')
+                actual_component_name = component_to_export
+            else:
+                # Create a wrapper component
+                actual_component_name = request.component_name
+                # Wrap the entire code in a main component
+                code = f'''import React from 'react';
+import {{ AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Sequence }} from 'remotion';
+
+{code}
+
+// Main exported component
+export const {actual_component_name}: React.FC = () => {{
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#0a1628' }}>
+      {{/* Add your scenes here */}}
+    </AbsoluteFill>
+  );
+}};
+'''
+        
+        with open(src_dir / f"{actual_component_name}.tsx", "w") as f:
+            f.write(code)
         
         # 5. Create Root.tsx
-        root_tsx = f"""import {{ Composition }} from 'remotion';
-import {{ {request.component_name} }} from './{request.component_name}';
+        root_tsx = f"""import React from 'react';
+import {{ Composition }} from 'remotion';
+import {{ {actual_component_name} }} from './{actual_component_name}';
 
 export const RemotionRoot: React.FC = () => {{
     return (
         <>
             <Composition
-                id="{request.component_name}"
-                component={{{request.component_name}}}
+                id="{actual_component_name}"
+                component={{{actual_component_name}}}
                 durationInFrames={{{request.duration_frames}}}
                 fps={{{request.fps}}}
                 width={{{request.width}}}
