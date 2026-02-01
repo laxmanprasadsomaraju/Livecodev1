@@ -7763,6 +7763,263 @@ RESPOND ONLY WITH VALID JSON:
         logger.error(f"Learning roadmap error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============== REMOTION STUDIO PREVIEW ==============
+
+# Remotion project management
+REMOTION_PROJECTS_DIR = Path("/tmp/remotion_projects")
+REMOTION_PROJECTS_DIR.mkdir(exist_ok=True)
+
+# Track running Remotion studio processes
+remotion_processes = {}
+
+class RemotionProjectSetup(BaseModel):
+    code: str
+    component_name: str = "VideoComponent"
+    width: int = 1920
+    height: int = 1080
+    fps: int = 30
+    duration_frames: int = 300
+
+class RemotionProjectResponse(BaseModel):
+    success: bool
+    project_id: str
+    studio_url: Optional[str] = None
+    message: str
+
+@api_router.post("/remotion/setup-project", response_model=RemotionProjectResponse)
+async def setup_remotion_project(request: RemotionProjectSetup):
+    """Setup a Remotion project and start the studio server"""
+    import subprocess
+    import signal
+    
+    project_id = str(uuid.uuid4())[:8]
+    project_dir = REMOTION_PROJECTS_DIR / project_id
+    src_dir = project_dir / "src"
+    
+    try:
+        # Create project directories
+        src_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 1. Create package.json
+        package_json = {
+            "name": f"remotion-preview-{project_id}",
+            "version": "1.0.0",
+            "scripts": {
+                "dev": "remotion studio",
+                "render": f"remotion render {request.component_name} out/video.mp4 --gl=angle"
+            },
+            "dependencies": {
+                "remotion": "^4.0.0",
+                "react": "^18.0.0",
+                "react-dom": "^18.0.0",
+                "@remotion/cli": "^4.0.0"
+            },
+            "devDependencies": {
+                "@types/react": "^18.0.0",
+                "@types/react-dom": "^18.0.0",
+                "typescript": "^5.0.0"
+            }
+        }
+        
+        with open(project_dir / "package.json", "w") as f:
+            json.dump(package_json, f, indent=2)
+        
+        # 2. Create tsconfig.json
+        tsconfig = {
+            "compilerOptions": {
+                "target": "ES2022",
+                "module": "ES2022",
+                "jsx": "react-jsx",
+                "moduleResolution": "node",
+                "esModuleInterop": True,
+                "skipLibCheck": True,
+                "strict": True
+            },
+            "include": ["src/**/*"]
+        }
+        
+        with open(project_dir / "tsconfig.json", "w") as f:
+            json.dump(tsconfig, f, indent=2)
+        
+        # 3. Create remotion.config.ts
+        remotion_config = """import { Config } from '@remotion/cli/config';
+
+Config.setVideoImageFormat('jpeg');
+Config.setOverwriteOutput(true);
+"""
+        with open(project_dir / "remotion.config.ts", "w") as f:
+            f.write(remotion_config)
+        
+        # 4. Write the user's component code
+        with open(src_dir / f"{request.component_name}.tsx", "w") as f:
+            f.write(request.code)
+        
+        # 5. Create Root.tsx
+        root_tsx = f"""import {{ Composition }} from 'remotion';
+import {{ {request.component_name} }} from './{request.component_name}';
+
+export const RemotionRoot: React.FC = () => {{
+    return (
+        <>
+            <Composition
+                id="{request.component_name}"
+                component={{{request.component_name}}}
+                durationInFrames={{{request.duration_frames}}}
+                fps={{{request.fps}}}
+                width={{{request.width}}}
+                height={{{request.height}}}
+            />
+        </>
+    );
+}};
+"""
+        with open(src_dir / "Root.tsx", "w") as f:
+            f.write(root_tsx)
+        
+        # 6. Create index.ts
+        index_ts = """import { registerRoot } from 'remotion';
+import { RemotionRoot } from './Root';
+
+registerRoot(RemotionRoot);
+"""
+        with open(src_dir / "index.ts", "w") as f:
+            f.write(index_ts)
+        
+        # 7. Install dependencies (run in background)
+        logger.info(f"Installing Remotion dependencies for project {project_id}...")
+        
+        # Run npm install
+        install_process = subprocess.run(
+            ["npm", "install"],
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if install_process.returncode != 0:
+            logger.error(f"npm install failed: {install_process.stderr}")
+            return RemotionProjectResponse(
+                success=False,
+                project_id=project_id,
+                message=f"Failed to install dependencies: {install_process.stderr[:500]}"
+            )
+        
+        # 8. Find an available port
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('', 0))
+        port = sock.getsockname()[1]
+        sock.close()
+        
+        # 9. Start Remotion Studio
+        logger.info(f"Starting Remotion Studio on port {port}...")
+        
+        process = subprocess.Popen(
+            ["npx", "remotion", "studio", "--port", str(port)],
+            cwd=str(project_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            preexec_fn=os.setsid
+        )
+        
+        # Store process reference
+        remotion_processes[project_id] = {
+            "process": process,
+            "port": port,
+            "project_dir": str(project_dir)
+        }
+        
+        # Wait a moment for studio to start
+        await asyncio.sleep(3)
+        
+        # Check if process is still running
+        if process.poll() is not None:
+            stderr = process.stderr.read().decode() if process.stderr else ""
+            return RemotionProjectResponse(
+                success=False,
+                project_id=project_id,
+                message=f"Remotion Studio failed to start: {stderr[:500]}"
+            )
+        
+        studio_url = f"http://localhost:{port}"
+        
+        return RemotionProjectResponse(
+            success=True,
+            project_id=project_id,
+            studio_url=studio_url,
+            message=f"Remotion Studio started successfully on port {port}"
+        )
+        
+    except subprocess.TimeoutExpired:
+        return RemotionProjectResponse(
+            success=False,
+            project_id=project_id,
+            message="Dependency installation timed out"
+        )
+    except Exception as e:
+        logger.error(f"Remotion setup error: {e}")
+        return RemotionProjectResponse(
+            success=False,
+            project_id=project_id,
+            message=str(e)
+        )
+
+
+@api_router.get("/remotion/project/{project_id}/status")
+async def get_remotion_project_status(project_id: str):
+    """Check status of a Remotion project"""
+    if project_id not in remotion_processes:
+        return {"status": "not_found", "message": "Project not found"}
+    
+    info = remotion_processes[project_id]
+    process = info["process"]
+    
+    if process.poll() is None:
+        return {
+            "status": "running",
+            "port": info["port"],
+            "studio_url": f"http://localhost:{info['port']}"
+        }
+    else:
+        return {
+            "status": "stopped",
+            "message": "Studio process has stopped"
+        }
+
+
+@api_router.delete("/remotion/project/{project_id}")
+async def stop_remotion_project(project_id: str):
+    """Stop and cleanup a Remotion project"""
+    import signal
+    
+    if project_id not in remotion_processes:
+        return {"success": False, "message": "Project not found"}
+    
+    try:
+        info = remotion_processes[project_id]
+        process = info["process"]
+        
+        # Kill the process group
+        if process.poll() is None:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            process.wait(timeout=5)
+        
+        # Cleanup project directory
+        project_dir = Path(info["project_dir"])
+        if project_dir.exists():
+            import shutil
+            shutil.rmtree(project_dir, ignore_errors=True)
+        
+        del remotion_processes[project_id]
+        
+        return {"success": True, "message": "Project stopped and cleaned up"}
+        
+    except Exception as e:
+        logger.error(f"Error stopping Remotion project: {e}")
+        return {"success": False, "message": str(e)}
+
+
 # Include the CV endpoints router (they were defined after the first include)
 app.include_router(api_router)
 
