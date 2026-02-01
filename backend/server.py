@@ -8455,6 +8455,430 @@ async def get_installed_packages(project_id: str):
         return {"success": False, "error": str(e), "packages": []}
 
 
+# ============== COMPREHENSIVE REMOTION PACKAGE MANAGEMENT ==============
+
+# Complete list of all Remotion packages organized by category
+REMOTION_PACKAGES = {
+    "core": [
+        "remotion",
+        "@remotion/cli",
+        "@remotion/player",
+        "@remotion/bundler",
+        "@remotion/renderer"
+    ],
+    "cloud": [
+        "@remotion/lambda",
+        "@remotion/cloudrun"
+    ],
+    "media_animation": [
+        "@remotion/media-utils",
+        "@remotion/gif",
+        "@remotion/lottie",
+        "@remotion/animation-utils",
+        "@remotion/transitions"
+    ],
+    "graphics": [
+        "@remotion/shapes",
+        "@remotion/paths",
+        "@remotion/noise",
+        "@remotion/three",
+        "@remotion/skia"
+    ],
+    "text_captions": [
+        "@remotion/captions",
+        "@remotion/google-fonts",
+        "@remotion/fonts",
+        "@remotion/layout-utils"
+    ],
+    "styling": [
+        "@remotion/tailwind",
+        "@remotion/enable-scss"
+    ],
+    "audio": [
+        "@remotion/install-whisper-cpp",
+        "@remotion/openai-whisper",
+        "@remotion/media-parser"
+    ],
+    "advanced": [
+        "@remotion/preload",
+        "@remotion/studio",
+        "@remotion/motion-blur",
+        "@remotion/light-leaks",
+        "@remotion/animated-emoji",
+        "@remotion/rive",
+        "@remotion/webcodecs",
+        "@remotion/zod-types",
+        "@remotion/licensing"
+    ],
+    "dependencies": [
+        "three",
+        "@react-three/fiber",
+        "@react-three/drei",
+        "@shopify/react-native-skia",
+        "lottie-web",
+        "tailwindcss",
+        "sass"
+    ]
+}
+
+@api_router.get("/remotion/packages/all")
+async def get_all_remotion_packages():
+    """Get complete list of all available Remotion packages organized by category"""
+    return {
+        "success": True,
+        "packages": REMOTION_PACKAGES,
+        "total_packages": sum(len(pkgs) for pkgs in REMOTION_PACKAGES.values()),
+        "categories": list(REMOTION_PACKAGES.keys())
+    }
+
+
+@api_router.post("/remotion/packages/install-all")
+async def install_all_remotion_packages(request: dict):
+    """Install all essential Remotion packages"""
+    import subprocess
+    import asyncio
+    
+    try:
+        project_id = request.get('project_id', 'shared')
+        categories = request.get('categories', ['core', 'media_animation', 'graphics', 'text_captions'])
+        
+        # Determine project directory
+        if project_id in remotion_processes:
+            project_dir = remotion_processes[project_id]["project_dir"]
+        else:
+            project_dir = REMOTION_PROJECTS_DIR / project_id
+            project_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Initialize package.json if needed
+            if not (project_dir / "package.json").exists():
+                package_json = {
+                    "name": f"remotion-project-{project_id}",
+                    "version": "1.0.0",
+                    "scripts": {
+                        "start": "remotion studio",
+                        "build": "remotion render"
+                    },
+                    "dependencies": {},
+                    "devDependencies": {}
+                }
+                with open(project_dir / "package.json", "w") as f:
+                    json.dump(package_json, f, indent=2)
+        
+        # Collect packages to install
+        packages_to_install = []
+        for category in categories:
+            if category in REMOTION_PACKAGES:
+                packages_to_install.extend(REMOTION_PACKAGES[category])
+        
+        # Special handling for @remotion/three - needs three and react-three-fiber
+        if "@remotion/three" in packages_to_install:
+            if "three" not in packages_to_install:
+                packages_to_install.append("three@0.160.0")
+            if "@react-three/fiber" not in packages_to_install:
+                packages_to_install.append("@react-three/fiber@8.15.0")
+        
+        logger.info(f"Installing {len(packages_to_install)} packages in {project_dir}...")
+        
+        # Install packages (in batches to avoid timeout)
+        batch_size = 5
+        installed = []
+        failed = []
+        
+        for i in range(0, len(packages_to_install), batch_size):
+            batch = packages_to_install[i:i+batch_size]
+            
+            try:
+                result = subprocess.run(
+                    ["npm", "install"] + batch,
+                    cwd=str(project_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+                
+                if result.returncode == 0:
+                    installed.extend(batch)
+                    logger.info(f"Installed batch: {batch}")
+                else:
+                    failed.extend(batch)
+                    logger.error(f"Failed batch: {batch}, Error: {result.stderr[:200]}")
+                    
+            except subprocess.TimeoutExpired:
+                failed.extend(batch)
+                logger.error(f"Timeout installing batch: {batch}")
+        
+        return {
+            "success": len(installed) > 0,
+            "installed": installed,
+            "failed": failed,
+            "total_requested": len(packages_to_install),
+            "total_installed": len(installed),
+            "project_dir": str(project_dir)
+        }
+        
+    except Exception as e:
+        logger.error(f"Install all packages error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "installed": [],
+            "failed": packages_to_install
+        }
+
+
+@api_router.post("/remotion/code/validate")
+async def validate_remotion_code(request: dict):
+    """Validate Remotion code for syntax errors and check required packages"""
+    try:
+        code = request.get('code', '')
+        
+        # Extract imports to determine required packages
+        import_lines = [line for line in code.split('\n') if line.strip().startswith('import')]
+        
+        required_packages = set()
+        missing_packages = []
+        
+        # Parse imports
+        for line in import_lines:
+            if 'from' in line:
+                # Extract package name from: import { X } from 'package'
+                parts = line.split('from')
+                if len(parts) > 1:
+                    package = parts[1].strip().strip("';\"")
+                    if package.startswith('@remotion/') or package == 'remotion':
+                        required_packages.add(package)
+        
+        # Basic syntax validation using AST
+        syntax_errors = []
+        try:
+            # Try to parse as JavaScript/TypeScript (basic check)
+            # Check for common issues
+            if 'export const' not in code and 'export default' not in code:
+                syntax_errors.append({
+                    "line": 0,
+                    "message": "No main export found. Add 'export const ComponentName: React.FC = () => { ... }'",
+                    "severity": "error"
+                })
+            
+            # Check for React import
+            if 'import React' not in code and 'React.FC' in code:
+                syntax_errors.append({
+                    "line": 0,
+                    "message": "Missing React import. Add: import React from 'react';",
+                    "severity": "error"
+                })
+            
+            # Check for common Remotion hooks without imports
+            hooks_to_check = ['useCurrentFrame', 'useVideoConfig', 'interpolate', 'spring']
+            for hook in hooks_to_check:
+                if hook in code and f'import' not in [l for l in code.split('\n')[:20] if hook in l]:
+                    syntax_errors.append({
+                        "line": 0,
+                        "message": f"'{hook}' used but might not be imported from 'remotion'",
+                        "severity": "warning"
+                    })
+            
+            # Check for balanced braces
+            open_braces = code.count('{')
+            close_braces = code.count('}')
+            if open_braces != close_braces:
+                syntax_errors.append({
+                    "line": 0,
+                    "message": f"Unbalanced braces: {open_braces} opening, {close_braces} closing",
+                    "severity": "error"
+                })
+            
+            # Check for balanced parentheses
+            open_parens = code.count('(')
+            close_parens = code.count(')')
+            if open_parens != close_parens:
+                syntax_errors.append({
+                    "line": 0,
+                    "message": f"Unbalanced parentheses: {open_parens} opening, {close_parens} closing",
+                    "severity": "error"
+                })
+                
+        except Exception as e:
+            syntax_errors.append({
+                "line": 0,
+                "message": f"Syntax validation error: {str(e)}",
+                "severity": "error"
+            })
+        
+        # AI-powered validation
+        validation_prompt = """You are a Remotion code validator. Analyze this code and identify issues.
+
+Check for:
+1. Missing imports
+2. Incorrect API usage (e.g., noise2d vs noise2D)
+3. Missing main export
+4. TypeScript errors
+5. Logic issues
+
+Respond with JSON:
+{
+    "is_valid": true/false,
+    "errors": [{"line": 0, "message": "error msg", "severity": "error"}],
+    "warnings": [{"line": 0, "message": "warning msg", "severity": "warning"}],
+    "suggestions": ["suggestion 1", "suggestion 2"]
+}"""
+        
+        try:
+            chat = get_remotion_chat_instance(validation_prompt)
+            msg = UserMessage(text=f"Validate this code:\n\n```tsx\n{code}\n```")
+            result = await chat.send_message(msg)
+            ai_validation = safe_parse_json(result, {
+                "is_valid": len(syntax_errors) == 0,
+                "errors": [],
+                "warnings": [],
+                "suggestions": []
+            })
+        except:
+            ai_validation = {
+                "is_valid": len(syntax_errors) == 0,
+                "errors": [],
+                "warnings": [],
+                "suggestions": []
+            }
+        
+        return {
+            "success": True,
+            "is_valid": len(syntax_errors) == 0 and ai_validation.get('is_valid', False),
+            "syntax_errors": syntax_errors,
+            "ai_errors": ai_validation.get('errors', []),
+            "warnings": ai_validation.get('warnings', []),
+            "suggestions": ai_validation.get('suggestions', []),
+            "required_packages": list(required_packages),
+            "line_count": len(code.split('\n'))
+        }
+        
+    except Exception as e:
+        logger.error(f"Code validation error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "is_valid": False
+        }
+
+
+@api_router.post("/remotion/code/save")
+async def save_remotion_code(request: dict):
+    """Save validated Remotion code to a file"""
+    try:
+        code = request.get('code', '')
+        filename = request.get('filename', 'MyComposition.tsx')
+        project_id = request.get('project_id', 'shared')
+        
+        # Validate first
+        validation = await validate_remotion_code({"code": code})
+        
+        if not validation.get('is_valid', False):
+            return {
+                "success": False,
+                "error": "Code has validation errors",
+                "validation": validation
+            }
+        
+        # Save to project directory
+        if project_id in remotion_processes:
+            project_dir = remotion_processes[project_id]["project_dir"]
+        else:
+            project_dir = REMOTION_PROJECTS_DIR / project_id / "src"
+            project_dir.mkdir(parents=True, exist_ok=True)
+        
+        filepath = Path(project_dir) / filename
+        
+        with open(filepath, 'w') as f:
+            f.write(code)
+        
+        logger.info(f"Saved Remotion code to {filepath}")
+        
+        return {
+            "success": True,
+            "filepath": str(filepath),
+            "filename": filename,
+            "size_bytes": len(code),
+            "line_count": len(code.split('\n')),
+            "validation": validation
+        }
+        
+    except Exception as e:
+        logger.error(f"Save code error: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@api_router.post("/remotion/code/detect-packages")
+async def detect_required_packages(request: dict):
+    """Analyze code and detect which Remotion packages are needed"""
+    try:
+        code = request.get('code', '')
+        user_prompt = request.get('user_prompt', '')
+        
+        # Extract import statements
+        imports = []
+        for line in code.split('\n'):
+            line = line.strip()
+            if line.startswith('import'):
+                imports.append(line)
+        
+        # AI-powered package detection
+        detection_prompt = """You are a Remotion package detection expert.
+
+Given the code and user requirements, identify ALL required packages.
+
+Consider:
+- Direct imports in code
+- Features mentioned in user prompt
+- Dependencies of used packages (e.g., @remotion/three needs three and @react-three/fiber)
+
+Respond with JSON:
+{
+    "required_packages": ["package1", "package2"],
+    "optional_packages": ["package3"],
+    "reasoning": "Why each package is needed"
+}"""
+        
+        chat = get_remotion_chat_instance(detection_prompt)
+        msg = UserMessage(text=f"""Code imports:
+{chr(10).join(imports)}
+
+User prompt: {user_prompt}
+
+What packages are needed?""")
+        
+        result = await chat.send_message(msg)
+        ai_result = safe_parse_json(result, {
+            "required_packages": [],
+            "optional_packages": [],
+            "reasoning": ""
+        })
+        
+        # Add essential packages always
+        essential = ["remotion", "@remotion/cli"]
+        for pkg in essential:
+            if pkg not in ai_result['required_packages']:
+                ai_result['required_packages'].insert(0, pkg)
+        
+        return {
+            "success": True,
+            "required_packages": ai_result['required_packages'],
+            "optional_packages": ai_result.get('optional_packages', []),
+            "reasoning": ai_result.get('reasoning', ''),
+            "detected_imports": imports
+        }
+        
+    except Exception as e:
+        logger.error(f"Package detection error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "required_packages": ["remotion"]
+        }
+
+
 # Include the CV endpoints router (they were defined after the first include)
 app.include_router(api_router)
 
