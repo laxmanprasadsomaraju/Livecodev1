@@ -6378,6 +6378,16 @@ RESPOND WITH JSON:
         
 Generate COMPLETE, WORKING Remotion code.
 
+AVAILABLE PACKAGES (use as needed):
+- Core: remotion, @remotion/cli, @remotion/studio
+- Animation: @remotion/animation-utils, @remotion/transitions, @remotion/motion-blur, @remotion/noise
+- Media: @remotion/media-utils, @remotion/preload, @remotion/gif, @remotion/lottie, @remotion/rive
+- Fonts: @remotion/google-fonts, @remotion/fonts, @remotion/animated-emoji, @remotion/rounded-text-box
+- Graphics: @remotion/shapes, @remotion/paths, @remotion/layout-utils
+- 3D: @remotion/three, @react-three/fiber, @react-three/drei, three
+- Captions: @remotion/captions, @remotion/openai-whisper
+- Player: @remotion/player, @remotion/renderer
+
 CRITICAL REQUIREMENTS:
 1. Import all necessary Remotion components
 2. Use TypeScript
@@ -6386,14 +6396,26 @@ CRITICAL REQUIREMENTS:
 5. Make animations smooth
 6. Handle edge cases
 7. Code must be READY TO RUN
+8. Use Google Fonts via @remotion/google-fonts when needed
+9. Use @remotion/transitions for scene transitions
+10. Use @remotion/shapes for SVG shapes
+11. Use @remotion/animation-utils for complex animations
+
+COMMON IMPORTS REFERENCE:
+- Fonts: import { loadFont } from "@remotion/google-fonts/Roboto";
+- Transitions: import { TransitionSeries, linearTiming, springTiming } from "@remotion/transitions";
+- Shapes: import { makeCircle, makeRect, makeTriangle } from "@remotion/shapes";
+- Animation Utils: import { interpolateStyles } from "@remotion/animation-utils";
+- GIF: import { Gif } from "@remotion/gif";
+- Lottie: import { Lottie } from "@remotion/lottie";
 
 Template structure:
 ```tsx
-import {AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Sequence} from 'remotion';
+import {AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Sequence, spring} from 'remotion';
 
 export const MyVideo: React.FC = () => {
   const frame = useCurrentFrame();
-  const {width, height} = useVideoConfig();
+  const {width, height, fps} = useVideoConfig();
   
   // Your animations here
   
