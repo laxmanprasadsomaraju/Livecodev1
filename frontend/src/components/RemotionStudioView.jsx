@@ -6,6 +6,7 @@ import {
   ExternalLink, X, Monitor, Package
 } from "lucide-react";
 import PackageExplorer from "./PackageExplorer";
+import RemotionCodeEditor from "./RemotionCodeEditor";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
