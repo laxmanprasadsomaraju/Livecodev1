@@ -7967,9 +7967,9 @@ registerRoot(RemotionRoot);
         )
 
 
-@api_router.get("/remotion/studio/{project_id}/{path:path}")
-@api_router.get("/remotion/studio/{project_id}")
-async def proxy_remotion_studio(project_id: str, path: str = ""):
+@api_router.api_route("/remotion/studio/{project_id}/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+@api_router.api_route("/remotion/studio/{project_id}", methods=["GET", "POST", "PUT", "DELETE"])
+async def proxy_remotion_studio(request: Request, project_id: str, path: str = ""):
     """Proxy requests to the Remotion Studio"""
     import httpx
     
@@ -7984,18 +7984,48 @@ async def proxy_remotion_studio(project_id: str, path: str = ""):
         raise HTTPException(status_code=503, detail="Studio is not running")
     
     target_url = f"http://localhost:{port}/{path}"
+    if request.query_params:
+        target_url += f"?{request.query_params}"
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(target_url, timeout=30.0)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Forward the request
+            if request.method == "GET":
+                response = await client.get(target_url, headers=dict(request.headers))
+            elif request.method == "POST":
+                body = await request.body()
+                response = await client.post(target_url, content=body, headers=dict(request.headers))
+            else:
+                response = await client.request(request.method, target_url, headers=dict(request.headers))
             
             # Get content type
             content_type = response.headers.get("content-type", "text/html")
+            content = response.content
+            
+            # Rewrite URLs in HTML content to use the proxy path
+            if "text/html" in content_type:
+                html = content.decode('utf-8')
+                # Rewrite absolute paths to use proxy
+                base_proxy = f"/api/remotion/studio/{project_id}"
+                html = html.replace('href="/', f'href="{base_proxy}/')
+                html = html.replace("href='/", f"href='{base_proxy}/")
+                html = html.replace('src="/', f'src="{base_proxy}/')
+                html = html.replace("src='/", f"src='{base_proxy}/")
+                html = html.replace('"/static-', f'"{base_proxy}/static-')
+                html = html.replace("'/static-", f"'{base_proxy}/static-")
+                content = html.encode('utf-8')
+            elif "javascript" in content_type or "application/javascript" in content_type:
+                js = content.decode('utf-8')
+                base_proxy = f"/api/remotion/studio/{project_id}"
+                # Rewrite fetch/XHR URLs
+                js = js.replace('"/api/', f'"{base_proxy}/api/')
+                js = js.replace("'/api/", f"'{base_proxy}/api/")
+                content = js.encode('utf-8')
             
             # Return the proxied response
             from fastapi.responses import Response
             return Response(
-                content=response.content,
+                content=content,
                 status_code=response.status_code,
                 media_type=content_type
             )
