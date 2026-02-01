@@ -8178,6 +8178,113 @@ async def stop_remotion_project(project_id: str):
         return {"success": False, "message": str(e)}
 
 
+class PackageInstallRequest(BaseModel):
+    package_name: str
+    install_command: str
+    project_id: Optional[str] = None
+
+@api_router.post("/remotion/install-package")
+async def install_remotion_package(request: PackageInstallRequest):
+    """Install a Remotion package to a project"""
+    import subprocess
+    
+    try:
+        # Determine target directory
+        if request.project_id and request.project_id in remotion_processes:
+            project_dir = remotion_processes[request.project_id]["project_dir"]
+        else:
+            # Use a shared packages directory or create temp project
+            project_dir = REMOTION_PROJECTS_DIR / "shared"
+            project_dir.mkdir(exist_ok=True)
+            
+            # Initialize if needed
+            if not (project_dir / "package.json").exists():
+                package_json = {
+                    "name": "remotion-packages",
+                    "version": "1.0.0",
+                    "dependencies": {}
+                }
+                with open(project_dir / "package.json", "w") as f:
+                    json.dump(package_json, f, indent=2)
+        
+        logger.info(f"Installing {request.package_name} in {project_dir}...")
+        
+        # Run npm install
+        result = subprocess.run(
+            request.install_command.split(),
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=180
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"Package install failed: {result.stderr}")
+            return {
+                "success": False,
+                "error": result.stderr[:500],
+                "package": request.package_name
+            }
+        
+        logger.info(f"Successfully installed {request.package_name}")
+        
+        return {
+            "success": True,
+            "package": request.package_name,
+            "message": f"{request.package_name} installed successfully"
+        }
+        
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "error": "Installation timed out",
+            "package": request.package_name
+        }
+    except Exception as e:
+        logger.error(f"Package installation error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "package": request.package_name
+        }
+
+
+@api_router.get("/remotion/installed-packages/{project_id}")
+async def get_installed_packages(project_id: str):
+    """Get list of installed Remotion packages for a project"""
+    import subprocess
+    
+    try:
+        if project_id in remotion_processes:
+            project_dir = remotion_processes[project_id]["project_dir"]
+        else:
+            project_dir = REMOTION_PROJECTS_DIR / "shared"
+        
+        if not Path(project_dir).exists():
+            return {"success": True, "packages": []}
+        
+        result = subprocess.run(
+            ["npm", "list", "--json", "--depth=0"],
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            return {"success": True, "packages": []}
+        
+        data = json.loads(result.stdout)
+        packages = list(data.get("dependencies", {}).keys())
+        remotion_packages = [p for p in packages if p.startswith("@remotion/") or p == "remotion"]
+        
+        return {"success": True, "packages": remotion_packages}
+        
+    except Exception as e:
+        logger.error(f"Error getting installed packages: {e}")
+        return {"success": False, "error": str(e), "packages": []}
+
+
 # Include the CV endpoints router (they were defined after the first include)
 app.include_router(api_router)
 
