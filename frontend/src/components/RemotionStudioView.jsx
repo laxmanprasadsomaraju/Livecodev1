@@ -402,6 +402,14 @@ const RemotionStudioView = () => {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {/* Package Explorer Toggle */}
+          <button
+            onClick={() => setShowPackageExplorer(!showPackageExplorer)}
+            className={`px-3 py-1.5 rounded-full glass-light text-xs font-medium flex items-center gap-2 transition-all ${showPackageExplorer ? 'bg-emerald-500/20 border border-emerald-500/30' : ''}`}
+          >
+            <Package className="w-3 h-3" />
+            Packages
+          </button>
           {/* Settings Toggle */}
           <button
             onClick={() => setShowSettings(!showSettings)}
