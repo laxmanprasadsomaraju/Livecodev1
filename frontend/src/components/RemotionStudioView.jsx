@@ -988,6 +988,39 @@ const RemotionStudioView = () => {
           </div>
         </div>
       )}
+
+      {/* Package Explorer Modal */}
+      {showPackageExplorer && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-emerald-900/50 to-teal-900/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <Package className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Remotion Package Explorer</h2>
+                <p className="text-xs text-white/50">Browse 36+ packages • Click to install • AI-powered recommendations</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowPackageExplorer(false)}
+              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all flex items-center gap-2 text-sm"
+            >
+              <X className="w-4 h-4" />
+              Close
+            </button>
+          </div>
+          
+          {/* Package Explorer Content */}
+          <div className="flex-1 overflow-hidden">
+            <PackageExplorer 
+              projectId={studioProjectId}
+              onPackagesChange={setInstalledPackages}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
