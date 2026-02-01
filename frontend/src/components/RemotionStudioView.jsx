@@ -290,14 +290,17 @@ const RemotionStudioView = () => {
       const data = await response.json();
       
       if (data.success && data.studio_url) {
-        setStudioUrl(data.studio_url);
+        // The studio_url is now a relative path like /api/remotion/studio/{project_id}
+        // Construct full URL using BACKEND_URL
+        const fullStudioUrl = `${BACKEND_URL}${data.studio_url}`;
+        setStudioUrl(fullStudioUrl);
         setStudioProjectId(data.project_id);
         setShowStudioPreview(true);
         
         // Add success message to chat
         const successMessage = {
           role: "system",
-          content: `🎬 **Remotion Studio Launched!**\n\nYour video preview is ready at: ${data.studio_url}\n\nProject ID: ${data.project_id}`
+          content: `🎬 **Remotion Studio Launched!**\n\nYour video preview is ready!\n\nProject ID: ${data.project_id}`
         };
         setConversationHistory(prev => [...prev, successMessage]);
       } else {
