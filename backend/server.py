@@ -6388,14 +6388,18 @@ AVAILABLE PACKAGES (use as needed):
 - Captions: @remotion/captions, @remotion/openai-whisper
 - Player: @remotion/player, @remotion/renderer
 
+⚠️ CRITICAL: MUST EXPORT MAIN COMPONENT
+The code MUST have ONE main exported component that will be used in the Composition.
+Example: export const MyVideo: React.FC = () => { ... }
+
 CRITICAL REQUIREMENTS:
 1. Import all necessary Remotion components
-2. Use TypeScript
-3. Include proper types
-4. Add comments for clarity
-5. Make animations smooth
+2. Use TypeScript with React.FC type
+3. Include proper types for all props
+4. MUST have "export const ComponentName: React.FC = () => { ... }" as the MAIN component
+5. Make animations smooth using spring() and interpolate()
 6. Handle edge cases
-7. Code must be READY TO RUN
+7. Code must be READY TO RUN - no placeholders
 8. Use Google Fonts via @remotion/google-fonts when needed
 9. Use @remotion/transitions for scene transitions
 10. Use @remotion/shapes for SVG shapes
@@ -6409,18 +6413,23 @@ COMMON IMPORTS REFERENCE:
 - GIF: import { Gif } from "@remotion/gif";
 - Lottie: import { Lottie } from "@remotion/lottie";
 
-Template structure:
+MANDATORY Template structure:
 ```tsx
+import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Sequence, spring} from 'remotion';
 
+// Helper components (optional)
+const HelperComponent: React.FC<{prop: string}> = ({prop}) => { ... };
+
+// MAIN EXPORTED COMPONENT - THIS IS REQUIRED!
 export const MyVideo: React.FC = () => {
   const frame = useCurrentFrame();
-  const {width, height, fps} = useVideoConfig();
+  const {width, height, fps, durationInFrames} = useVideoConfig();
   
   // Your animations here
   
   return (
-    <AbsoluteFill>
+    <AbsoluteFill style={{backgroundColor: '#000'}}>
       {/* Your content */}
     </AbsoluteFill>
   );
@@ -6429,7 +6438,7 @@ export const MyVideo: React.FC = () => {
 
 RESPOND WITH VALID JSON:
 {
-    "code": "Complete TypeScript React code",
+    "code": "Complete TypeScript React code WITH export const MainComponent",
     "explanation": "How the code works",
     "key_animations": ["animation 1", "animation 2"]
 }"""
