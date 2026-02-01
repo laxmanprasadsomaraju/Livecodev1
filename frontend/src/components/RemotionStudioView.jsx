@@ -908,6 +908,52 @@ const RemotionStudioView = () => {
           </div>
         </div>
       </div>
+
+      {/* Remotion Studio Preview Modal */}
+      {showStudioPreview && studioUrl && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-purple-900/50 to-indigo-900/50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                <Monitor className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Remotion Studio Preview</h2>
+                <p className="text-xs text-white/50">Project ID: {studioProjectId}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href={studioUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-lg glass-light hover:bg-white/10 transition-all flex items-center gap-2 text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open in New Tab
+              </a>
+              <button
+                onClick={handleStopStudio}
+                className="px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 transition-all flex items-center gap-2 text-sm text-red-300"
+              >
+                <X className="w-4 h-4" />
+                Close Studio
+              </button>
+            </div>
+          </div>
+          
+          {/* Iframe Container */}
+          <div className="flex-1 relative">
+            <iframe
+              src={studioUrl}
+              className="absolute inset-0 w-full h-full border-0"
+              title="Remotion Studio Preview"
+              allow="autoplay; clipboard-write"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
