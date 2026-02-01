@@ -263,6 +263,87 @@ const RemotionStudioView = () => {
     }
   };
 
+  // Setup and launch Remotion Studio Preview
+  const handleLaunchStudio = async () => {
+    if (!generatedCode || isSettingUpStudio) return;
+    
+    setIsSettingUpStudio(true);
+    
+    try {
+      // Extract component name from code
+      const componentMatch = generatedCode.match(/export\s+(?:const|function)\s+(\w+)/);
+      const componentName = componentMatch ? componentMatch[1] : "VideoComponent";
+      
+      const response = await fetch(`${BACKEND_URL}/api/remotion/setup-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: generatedCode,
+          component_name: componentName,
+          width: videoConfig?.width || 1920,
+          height: videoConfig?.height || 1080,
+          fps: videoConfig?.fps || 30,
+          duration_frames: videoConfig?.durationInFrames || 300
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.studio_url) {
+        setStudioUrl(data.studio_url);
+        setStudioProjectId(data.project_id);
+        setShowStudioPreview(true);
+        
+        // Add success message to chat
+        const successMessage = {
+          role: "system",
+          content: `🎬 **Remotion Studio Launched!**\n\nYour video preview is ready at: ${data.studio_url}\n\nProject ID: ${data.project_id}`
+        };
+        setConversationHistory(prev => [...prev, successMessage]);
+      } else {
+        throw new Error(data.message || "Failed to setup Remotion project");
+      }
+      
+    } catch (error) {
+      console.error("Studio setup error:", error);
+      const errorMessage = {
+        role: "system", 
+        content: `❌ Failed to launch Remotion Studio: ${error.message}`
+      };
+      setConversationHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsSettingUpStudio(false);
+    }
+  };
+
+  // Stop Remotion Studio
+  const handleStopStudio = async () => {
+    if (!studioProjectId) return;
+    
+    try {
+      await fetch(`${BACKEND_URL}/api/remotion/project/${studioProjectId}`, {
+        method: "DELETE"
+      });
+    } catch (error) {
+      console.error("Error stopping studio:", error);
+    }
+    
+    setStudioUrl(null);
+    setStudioProjectId(null);
+    setShowStudioPreview(false);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (studioProjectId) {
+        fetch(`${BACKEND_URL}/api/remotion/project/${studioProjectId}`, {
+          method: "DELETE"
+        }).catch(() => {});
+      }
+    };
+  }, [studioProjectId]);
+
   // Preset video templates
   const presets = [
     { 
