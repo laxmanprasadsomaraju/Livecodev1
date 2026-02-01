@@ -7837,6 +7837,8 @@ async def setup_remotion_project(request: RemotionProjectSetup):
                 "react": "^18.0.0",
                 "react-dom": "^18.0.0",
                 "@remotion/cli": "^4.0.0",
+                "@remotion/bundler": "^4.0.0",
+                "@remotion/studio": "^4.0.0",
                 
                 # Animation & Effects
                 "@remotion/animation-utils": "^4.0.0",
@@ -7850,6 +7852,8 @@ async def setup_remotion_project(request: RemotionProjectSetup):
                 "@remotion/gif": "^4.0.0",
                 "@remotion/lottie": "^4.0.0",
                 "@remotion/rive": "^4.0.0",
+                "@remotion/media-parser": "^4.0.0",
+                "@remotion/webcodecs": "^4.0.0",
                 
                 # Typography & Fonts  
                 "@remotion/google-fonts": "^4.0.0",
@@ -7861,6 +7865,7 @@ async def setup_remotion_project(request: RemotionProjectSetup):
                 "@remotion/shapes": "^4.0.0",
                 "@remotion/paths": "^4.0.0",
                 "@remotion/layout-utils": "^4.0.0",
+                "@remotion/skia": "^4.0.0",
                 
                 # 3D & Advanced Graphics
                 "@remotion/three": "^4.0.0",
@@ -7871,21 +7876,25 @@ async def setup_remotion_project(request: RemotionProjectSetup):
                 # Captions & Audio
                 "@remotion/captions": "^4.0.0",
                 "@remotion/openai-whisper": "^4.0.0",
+                "@remotion/install-whisper-cpp": "^4.0.0",
                 
                 # Player & Rendering
                 "@remotion/player": "^4.0.0",
                 "@remotion/renderer": "^4.0.0",
-                "@remotion/studio": "^4.0.0",
                 
-                # Media Processing
-                "@remotion/media-parser": "^4.0.0",
-                "@remotion/webcodecs": "^4.0.0",
+                # Cloud Rendering
+                "@remotion/lambda": "^4.0.0",
+                "@remotion/cloudrun": "^4.0.0",
                 
                 # Styling
                 "@remotion/tailwind": "^4.0.0",
+                "@remotion/enable-scss": "^4.0.0",
+                "tailwindcss": "^3.4.0",
+                "sass": "^1.70.0",
                 
                 # Utilities
                 "@remotion/zod-types": "^4.0.0",
+                "@remotion/licensing": "^4.0.0",
                 "zod": "^3.22.3"
             },
             "devDependencies": {
