@@ -7143,6 +7143,22 @@ async def edit_cv_section(request: CVEditRequest):
         # Determine if LaTeX
         is_latex = cv_data.get('file_type') == 'latex' or request.preserve_latex
         
+        # Get job description if available
+        job_description = cv_data.get('job_description', '')
+        job_context = ""
+        if job_description:
+            job_context = f"""
+
+TARGET JOB CONTEXT:
+{job_description[:1500]}
+
+IMPORTANT: Use this job description to:
+- Highlight relevant experience and skills that match the job
+- Use keywords from the job description
+- Emphasize achievements related to job requirements
+- Tailor the content to show you're a perfect fit
+"""
+        
         latex_instruction = ""
         if is_latex:
             latex_instruction = """
@@ -7156,6 +7172,7 @@ CRITICAL: This is a LaTeX document. You MUST:
         system_prompt = f"""You are an expert CV editor helping improve resumes.
 
 {latex_instruction}
+{job_context}
 
 EDITING RULES:
 1. Follow the user's edit instruction precisely
@@ -7164,11 +7181,13 @@ EDITING RULES:
 4. Use action verbs and quantify achievements when possible
 5. Preserve the overall structure unless asked to change it
 6. Do NOT add fake information or exaggerate
+7. If job description is provided, tailor content to match requirements
+8. Use keywords from job description naturally
 
 RESPOND ONLY WITH VALID JSON:
 {{
     "edited_text": "The edited version of the text",
-    "explanation": "Brief explanation of changes made",
+    "explanation": "Brief explanation of changes made (mention job-specific improvements if applicable)",
     "changes_summary": ["Change 1", "Change 2", "Change 3"]
 }}"""
         
