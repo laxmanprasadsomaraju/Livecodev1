@@ -6749,10 +6749,11 @@ class TextUploadRequest(BaseModel):
     text_content: str
     file_type: str = "txt"  # txt or latex
     filename: Optional[str] = "pasted_cv.txt"
+    job_description: Optional[str] = None  # NEW: Job description
 
 @api_router.post("/cv/upload-text")
 async def upload_cv_text(request: TextUploadRequest):
-    """Upload CV as plain text or LaTeX code"""
+    """Upload CV as plain text or LaTeX code with optional job description"""
     try:
         cv_id = str(uuid.uuid4())
         raw_text = request.text_content.strip()
@@ -6770,8 +6771,8 @@ async def upload_cv_text(request: TextUploadRequest):
         lines = raw_text.split('\n')
         total_lines = len(lines)
         
-        # Use AI to parse sections
-        parsed_data = await ai_parse_cv_sections(raw_text, file_type)
+        # Use AI to parse sections (with job context if provided)
+        parsed_data = await ai_parse_cv_sections(raw_text, file_type, request.job_description)
         
         # Build sections with IDs
         sections = []
