@@ -635,6 +635,86 @@ def detect_frameworks_and_entry_points(directory: Path) -> tuple:
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# ============== AUTHENTICATION ENDPOINTS ==============
+
+@api_router.post("/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """Login endpoint for hackathon judges"""
+    try:
+        # Check credentials
+        if request.email == JUDGE_EMAIL and request.password == JUDGE_PASSWORD:
+            # Create session token
+            session_token = str(uuid.uuid4())
+            
+            # Store session in database
+            await auth_sessions_collection.insert_one({
+                "session_token": session_token,
+                "email": request.email,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "expires_at": (datetime.now(timezone.utc).timestamp() + 86400 * 7)  # 7 days
+            })
+            
+            return LoginResponse(
+                success=True,
+                message="Login successful",
+                session_token=session_token
+            )
+        else:
+            return LoginResponse(
+                success=False,
+                message="Invalid email or password"
+            )
+            
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return LoginResponse(
+            success=False,
+            message="Login failed"
+        )
+
+@api_router.post("/auth/check", response_model=AuthCheckResponse)
+async def check_auth(request: dict):
+    """Check if session token is valid"""
+    try:
+        session_token = request.get('session_token')
+        
+        if not session_token:
+            return AuthCheckResponse(authenticated=False)
+        
+        # Check session in database
+        session = await auth_sessions_collection.find_one({"session_token": session_token})
+        
+        if not session:
+            return AuthCheckResponse(authenticated=False)
+        
+        # Check expiration
+        if session.get('expires_at', 0) < datetime.now(timezone.utc).timestamp():
+            return AuthCheckResponse(authenticated=False)
+        
+        return AuthCheckResponse(
+            authenticated=True,
+            email=session.get('email')
+        )
+        
+    except Exception as e:
+        logger.error(f"Auth check error: {e}")
+        return AuthCheckResponse(authenticated=False)
+
+@api_router.post("/auth/logout")
+async def logout(request: dict):
+    """Logout endpoint"""
+    try:
+        session_token = request.get('session_token')
+        
+        if session_token:
+            await auth_sessions_collection.delete_one({"session_token": session_token})
+        
+        return {"success": True, "message": "Logged out successfully"}
+        
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        return {"success": False, "message": "Logout failed"}
+
 # ============== PROJECT / IDE ENDPOINTS ==============
 
 @api_router.post("/upload-project")
