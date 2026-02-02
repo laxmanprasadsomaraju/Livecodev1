@@ -50,6 +50,21 @@ api_router = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# ============== AUTHENTICATION MODELS ==============
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginResponse(BaseModel):
+    success: bool
+    message: str
+    session_token: Optional[str] = None
+
+class AuthCheckResponse(BaseModel):
+    authenticated: bool
+    email: Optional[str] = None
+
 # Workspace directory for project execution
 WORKSPACE_DIR = Path("/tmp/live_code_mentor_workspaces")
 WORKSPACE_DIR.mkdir(exist_ok=True)
