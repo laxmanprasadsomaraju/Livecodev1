@@ -217,6 +217,11 @@ const CVIntelligenceView = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      
+      // Add job description if provided
+      if (jobDescriptionUpload.trim()) {
+        formData.append('job_description', jobDescriptionUpload);
+      }
 
       const response = await fetch(`${BACKEND_URL}/api/cv/upload`, {
         method: 'POST',
@@ -226,8 +231,15 @@ const CVIntelligenceView = () => {
       if (!response.ok) throw new Error('Failed to upload CV');
 
       const data = await response.json();
+      
+      // Store job description with CV data
+      if (jobDescriptionUpload.trim()) {
+        data.job_description = jobDescriptionUpload;
+      }
+      
       setCvData(data);
       setActiveTab("editor");
+      setJobDescriptionUpload(""); // Clear for next upload
       toast.success("CV uploaded and parsed successfully!");
     } catch (error) {
       console.error('Upload error:', error);
