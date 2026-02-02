@@ -1807,13 +1807,40 @@ const CVIntelligenceView = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-white/60 mb-1 block">Job Description (Optional)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm text-white/60">Job Description (Optional)</label>
+                    {cvData.job_description && !jobDescription && (
+                      <button
+                        onClick={() => setJobDescription(cvData.job_description)}
+                        className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                      >
+                        <Target className="w-3 h-3" />
+                        Load from upload
+                      </button>
+                    )}
+                    {cvData.job_description && jobDescription === cvData.job_description && (
+                      <span className="text-xs text-green-400 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        From upload
+                      </span>
+                    )}
+                  </div>
                   <Textarea
-                    value={jobDescription}
+                    value={jobDescription || (cvData.job_description || '')}
                     onChange={(e) => setJobDescription(e.target.value)}
                     placeholder="Paste the job description here for better analysis..."
-                    className="min-h-[120px] bg-white/5 border-white/10 text-white placeholder:text-white/30"
+                    className={`min-h-[120px] bg-white/5 text-white placeholder:text-white/30 ${
+                      cvData.job_description && !jobDescription 
+                        ? 'border-green-500/30 focus:ring-green-500/50' 
+                        : 'border-white/10 focus:ring-indigo-500/50'
+                    }`}
                   />
+                  {cvData.job_description && !jobDescription && (
+                    <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      Job description from upload is pre-filled (editable)
+                    </p>
+                  )}
                 </div>
                 <Button
                   onClick={runAnalysis}
