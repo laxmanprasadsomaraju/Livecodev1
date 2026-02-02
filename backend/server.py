@@ -5968,9 +5968,19 @@ def is_latex_document(text: str) -> bool:
     latex_indicators = ['\\documentclass', '\\begin{document}', '\\section', '\\subsection', '\\item', '\\textbf']
     return any(indicator in text for indicator in latex_indicators)
 
-async def ai_parse_cv_sections(raw_text: str, file_type: str) -> Dict:
+async def ai_parse_cv_sections(raw_text: str, file_type: str, job_description: Optional[str] = None) -> Dict:
     """Use AI to intelligently parse CV sections"""
-    system_prompt = """You are a CV/Resume parsing expert. Analyze the provided CV text and extract ALL structured sections.
+    
+    job_context = ""
+    if job_description and job_description.strip():
+        job_context = f"""
+
+TARGET JOB DESCRIPTION:
+{job_description[:2000]}
+
+Use this job description to understand what skills and experience are most relevant. While parsing, note any direct matches or gaps."""
+
+    system_prompt = f"""You are a CV/Resume parsing expert. Analyze the provided CV text and extract ALL structured sections.
 
 CRITICAL REQUIREMENTS:
 1. Extract EVERY section - do not miss any projects, experience entries, or content
@@ -5985,31 +5995,32 @@ CRITICAL REQUIREMENTS:
    - Approximate line numbers (start and end)
 6. Also extract contact info (name, email, phone, linkedin, github, location, etc.)
 7. Be thorough and exhaustive - capture everything
+{job_context}
 
 EXAMPLE FOR PROJECTS:
 If CV has 4 projects, your JSON should have ONE "projects" section with ALL 4 projects' complete text.
 
 RESPOND ONLY WITH VALID JSON:
-{
-    "contact_info": {
+{{
+    "contact_info": {{
         "name": "Full Name",
         "email": "email@example.com",
         "phone": "+1234567890",
         "linkedin": "linkedin.com/in/...",
         "github": "github.com/...",
         "location": "City, Country"
-    },
+    }},
     "sections": [
-        {
+        {{
             "type": "experience",
             "title": "Work Experience",
             "content": "Full text of section",
             "bullets": ["Bullet 1", "Bullet 2"],
             "start_line": 10,
             "end_line": 30
-        }
+        }}
     ]
-}"""
+}}"""
     
     chat = get_chat_instance(system_prompt, model_type="fast")
     msg = UserMessage(text=f"Parse this CV and extract ALL sections with COMPLETE content. Do not miss any projects or experience entries:\n\n{raw_text[:25000]}")  # Increased limit
