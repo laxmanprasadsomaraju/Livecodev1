@@ -20,7 +20,7 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/" element={<SetupPage />} />
+      <Route path="/" element={<MainApp />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
