@@ -6806,10 +6806,19 @@ async def upload_cv_text(request: TextUploadRequest):
             created_at=datetime.now(timezone.utc).isoformat()
         )
         
-        # Store in database
-        await cv_collection.insert_one(parsed_cv.model_dump())
+        # Store in database (including job_description)
+        cv_doc = parsed_cv.model_dump()
+        if request.job_description and request.job_description.strip():
+            cv_doc['job_description'] = request.job_description.strip()
         
-        return parsed_cv
+        await cv_collection.insert_one(cv_doc)
+        
+        # Add job_description to response if provided
+        response_data = parsed_cv.model_dump()
+        if request.job_description and request.job_description.strip():
+            response_data['job_description'] = request.job_description.strip()
+        
+        return response_data
         
     except HTTPException:
         raise
