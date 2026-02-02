@@ -1687,14 +1687,32 @@ const CVIntelligenceView = () => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="glass-light rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                <MessageSquare className="w-6 h-6 text-blue-400" />
-                Chat Edit: {chatSection.title}
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <MessageSquare className="w-6 h-6 text-blue-400" />
+                  Chat Edit: {chatSection.title}
+                </h3>
+                {cvData?.job_description && (
+                  <div className="px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 flex items-center gap-2">
+                    <Target className="w-3 h-3 text-green-400" />
+                    <span className="text-xs text-green-400 font-medium">Job-Aware</span>
+                  </div>
+                )}
+              </div>
               <button onClick={() => {setChatSection(null); setChatMessages([]);}} className="text-white/40 hover:text-white">
                 <X className="w-6 h-6" />
               </button>
             </div>
+            
+            {/* Job Context Hint */}
+            {cvData?.job_description && (
+              <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                <p className="text-sm text-green-400 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  AI knows your target job and will suggest changes aligned with job requirements
+                </p>
+              </div>
+            )}
             
             <div className="flex-1 overflow-y-auto space-y-3 mb-4">
               {/* Show current content */}
