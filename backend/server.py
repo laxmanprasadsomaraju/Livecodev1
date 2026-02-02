@@ -7036,8 +7036,18 @@ RESPOND WITH JSON:
         
         chat = get_chat_instance(system_prompt, model_type="fast")
         
-        # Add conversation history
+        # Add conversation history and job context
         full_context = f"Current section content:\n{section.get('content', '')}\n\n"
+        
+        # Add job description reminder in user context
+        if job_description:
+            full_context += f"""📋 REMINDER - Target Job:
+{job_description[:500]}...
+
+The user wants changes aligned with this job posting.
+
+"""
+        
         if request.conversation_history:
             full_context += "Previous conversation:\n"
             for msg in request.conversation_history[-3:]:  # Last 3 messages
