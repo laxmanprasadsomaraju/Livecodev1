@@ -56,6 +56,7 @@ const CVIntelligenceView = () => {
   const [uploadMethod, setUploadMethod] = useState("file"); // file, text, latex
   const [pastedText, setPastedText] = useState("");
   const [pastedFilename, setPastedFilename] = useState("pasted_cv.txt");
+  const [jobDescriptionUpload, setJobDescriptionUpload] = useState(""); // Job description during upload
   
   // Analysis state
   const [targetRole, setTargetRole] = useState("");
