@@ -50,13 +50,16 @@ export default function MainApp() {
     
     const checkAuth = async () => {
       try {
-        const response = await fetch(`${API}/auth/me`, {
-          credentials: 'include'
-        });
-        if (!response.ok) throw new Error('Not authenticated');
-        const userData = await response.json();
-        setUser(userData);
-        setIsAuthenticated(true);
+        const sessionToken = localStorage.getItem('judge_session_token');
+        const email = localStorage.getItem('judge_email');
+        
+        if (sessionToken && email) {
+          setUser({ email });
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          navigate('/login', { replace: true });
+        }
       } catch (e) {
         setIsAuthenticated(false);
         navigate('/login', { replace: true });
