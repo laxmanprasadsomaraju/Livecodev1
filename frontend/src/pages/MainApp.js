@@ -70,10 +70,10 @@ export default function MainApp() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
+      // Clear local storage
+      localStorage.removeItem('judge_session_token');
+      localStorage.removeItem('judge_email');
+      
       toast.success('Logged out successfully');
       navigate('/login', { replace: true });
     } catch (e) {
