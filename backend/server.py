@@ -6976,29 +6976,51 @@ async def chat_edit_section(request: ChatEditSectionRequest):
         # Build conversation context
         is_latex = cv_data.get('file_type') == 'latex'
         
+        # Get job description if available
+        job_description = cv_data.get('job_description', '')
+        job_context = ""
+        if job_description:
+            job_context = f"""
+
+🎯 TARGET JOB DESCRIPTION:
+{job_description[:1500]}
+
+CRITICAL: The user uploaded this job description when uploading their CV. Use it to:
+- Identify relevant keywords and skills from the job posting
+- Suggest changes that align with job requirements
+- Highlight experience that matches the role
+- Use terminology from the job description
+- Make the section more relevant to this specific job
+- Point out what's missing that the job needs
+"""
+        
         latex_instruction = ""
         if is_latex:
             latex_instruction = "IMPORTANT: This is LaTeX format. Preserve all LaTeX commands and syntax."
         
-        system_prompt = f"""You are a CV editing assistant. You help users edit their CV sections through conversation.
+        system_prompt = f"""You are a CV editing assistant helping users tailor their CV for a specific job.
 
 Current section type: {section.get('type', 'other')}
 Current section title: {section.get('title', 'Section')}
 
 {latex_instruction}
+{job_context}
 
 GUIDELINES:
 1. Be conversational and helpful
-2. Make concrete edit suggestions
-3. Ask clarifying questions if needed
-4. Preserve formatting unless user wants to change it
-5. Don't add fake information
+2. Make concrete edit suggestions that match the target job
+3. Use keywords from the job description naturally
+4. Ask clarifying questions if needed
+5. Preserve formatting unless user wants to change it
+6. Don't add fake information - only enhance what's already there
+7. If job description is available, ALWAYS consider it in your suggestions
+8. When user asks to "improve based on job" or similar, use the job context above
 
 RESPOND WITH JSON:
 {{
-    "response": "Your conversational response to the user",
+    "response": "Your conversational response (mention job-specific improvements if applicable)",
     "suggested_edit": "The edited version of the section (null if just asking questions)",
-    "explanation": "Brief explanation of changes made (if any)",
+    "explanation": "Brief explanation of changes made, highlighting job-relevant improvements",
     "needs_clarification": true/false
 }}"""
         
