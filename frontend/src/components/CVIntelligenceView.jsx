@@ -908,6 +908,38 @@ const CVIntelligenceView = () => {
             ))}
           </div>
 
+          {/* Job Description Input (Optional but Recommended) */}
+          <div className="glass-light rounded-2xl p-6 border-2 border-green-500/30">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-green-500/20">
+                <Target className="w-5 h-5 text-green-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  Target Job Description
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Recommended</span>
+                </h3>
+                <p className="text-white/60 text-sm mt-1">
+                  Paste the job description you're applying for. AI will use this to provide tailored suggestions when editing your CV sections.
+                </p>
+              </div>
+            </div>
+            
+            <Textarea
+              value={jobDescriptionUpload}
+              onChange={(e) => setJobDescriptionUpload(e.target.value)}
+              placeholder="Paste the job description here...&#10;&#10;Example:&#10;Senior Software Engineer&#10;&#10;Requirements:&#10;- 5+ years of Python experience&#10;- Experience with FastAPI, Docker, Kubernetes&#10;- Strong problem-solving skills&#10;...&#10;&#10;💡 This helps AI suggest CV improvements that match the job!"
+              className="min-h-[150px] text-sm bg-white/5 border-white/10 text-white placeholder:text-white/30"
+            />
+            
+            {jobDescriptionUpload.trim() && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle className="w-4 h-4" />
+                <span>Job context will be used for AI suggestions</span>
+              </div>
+            )}
+          </div>
+
           {/* File Upload Method */}
           {uploadMethod === "file" && (
             <div
