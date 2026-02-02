@@ -6021,8 +6021,11 @@ RESPOND ONLY WITH VALID JSON:
     })
 
 @api_router.post("/cv/upload")
-async def upload_cv(file: UploadFile = File(...)):
-    """Upload and parse a CV (PDF, DOCX, LaTeX, or TXT)"""
+async def upload_cv(
+    file: UploadFile = File(...),
+    job_description: Optional[str] = Form(None)
+):
+    """Upload and parse a CV (PDF, DOCX, LaTeX, or TXT) with optional job description"""
     try:
         cv_id = str(uuid.uuid4())
         content = await file.read()
@@ -6053,8 +6056,8 @@ async def upload_cv(file: UploadFile = File(...)):
         lines = raw_text.split('\n')
         total_lines = len(lines)
         
-        # Use AI to parse sections
-        parsed_data = await ai_parse_cv_sections(raw_text, file_type)
+        # Use AI to parse sections (with job context if provided)
+        parsed_data = await ai_parse_cv_sections(raw_text, file_type, job_description)
         
         # Build sections with IDs
         sections = []
@@ -6088,10 +6091,19 @@ async def upload_cv(file: UploadFile = File(...)):
             created_at=datetime.now(timezone.utc).isoformat()
         )
         
-        # Store in database
-        await cv_collection.insert_one(parsed_cv.model_dump())
+        # Store in database (including job_description)
+        cv_doc = parsed_cv.model_dump()
+        if job_description and job_description.strip():
+            cv_doc['job_description'] = job_description.strip()
         
-        return parsed_cv
+        await cv_collection.insert_one(cv_doc)
+        
+        # Add job_description to response if provided
+        response_data = parsed_cv.model_dump()
+        if job_description and job_description.strip():
+            response_data['job_description'] = job_description.strip()
+        
+        return response_data
         
     except HTTPException:
         raise
