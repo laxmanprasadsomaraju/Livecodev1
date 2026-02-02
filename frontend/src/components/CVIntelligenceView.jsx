@@ -258,22 +258,36 @@ const CVIntelligenceView = () => {
 
     setIsUploading(true);
     try {
+      const requestBody = {
+        text_content: pastedText,
+        file_type: uploadMethod, // 'text' or 'latex'
+        filename: pastedFilename || "pasted_cv.txt"
+      };
+      
+      // Add job description if provided
+      if (jobDescriptionUpload.trim()) {
+        requestBody.job_description = jobDescriptionUpload;
+      }
+      
       const response = await fetch(`${BACKEND_URL}/api/cv/upload-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text_content: pastedText,
-          file_type: uploadMethod, // 'text' or 'latex'
-          filename: pastedFilename || "pasted_cv.txt"
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) throw new Error('Failed to process text');
 
       const data = await response.json();
+      
+      // Store job description with CV data
+      if (jobDescriptionUpload.trim()) {
+        data.job_description = jobDescriptionUpload;
+      }
+      
       setCvData(data);
       setActiveTab("editor");
       setPastedText("");
+      setJobDescriptionUpload(""); // Clear for next upload
       toast.success("CV text processed successfully!");
     } catch (error) {
       console.error('Text upload error:', error);
