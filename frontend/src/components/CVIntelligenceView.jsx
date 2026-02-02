@@ -1077,6 +1077,26 @@ const CVIntelligenceView = () => {
               </div>
             )}
 
+            {/* Job Description Card (if available) */}
+            {cvData.job_description && (
+              <div className="glass-light rounded-xl p-6 border-2 border-green-500/30">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Target className="w-5 h-5 text-green-400" />
+                    Target Job Description
+                    <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs">Active</span>
+                  </h3>
+                </div>
+                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 max-h-40 overflow-y-auto">
+                  <p className="text-white/80 text-sm whitespace-pre-wrap">{cvData.job_description}</p>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>AI will use this context when editing sections</span>
+                </div>
+              </div>
+            )}
+
             {/* VIEW MODE TOGGLE */}
             <div className="glass-light rounded-xl p-3 flex items-center justify-between">
               <span className="text-white/60 text-sm">View Mode:</span>
