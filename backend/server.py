@@ -32,11 +32,16 @@ db = client[os.environ.get('DB_NAME', 'live_code_mentor')]
 sessions_collection = db.sessions
 projects_collection = db.projects
 workspaces_collection = db.workspaces
+auth_sessions_collection = db.auth_sessions  # For authentication
 
 # Emergent LLM Setup
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+
+# Authentication credentials (for hackathon judges)
+JUDGE_EMAIL = "judge@gemini3hackathon.dev"
+JUDGE_PASSWORD = "Gemini3Hackathon2026!"
 
 app = FastAPI(title="Live Code Mentor - AI IDE API")
 api_router = APIRouter(prefix="/api")
