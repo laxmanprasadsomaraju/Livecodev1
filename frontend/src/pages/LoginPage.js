@@ -3,51 +3,192 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, Mail, User, AlertCircle } from 'lucide-react';
 import OpenClaw from '@/components/ui/icons/OpenClaw';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = `${BACKEND_URL}/api`;
 
+// Hardcoded judge credentials
+const JUDGE_EMAIL = 'judge@gemini3hackathon.dev';
+const JUDGE_PASSWORD = 'Gemini3Hackathon2026!';
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
-  const [instanceLock, setInstanceLock] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [error, setError] = useState('');
 
-  // Check if already authenticated and instance lock status
+  // Check if already authenticated
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check instance lock status first
-        const instanceRes = await fetch(`${API}/auth/instance`);
-        if (instanceRes.ok) {
-          const instanceData = await instanceRes.json();
-          setInstanceLock(instanceData);
-        }
-
-        const response = await fetch(`${API}/auth/me`, {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          // Already authenticated, go to setup
-          navigate('/', { replace: true });
-          return;
+        const sessionToken = localStorage.getItem('judge_session_token');
+        if (sessionToken) {
+          const response = await fetch(`${API}/auth/check-judge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_token: sessionToken })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.authenticated) {
+              navigate('/', { replace: true, state: { user: { email: data.email } } });
+              return;
+            }
+          }
         }
       } catch (e) {
-        // Not authenticated
+        console.error('Auth check failed:', e);
       }
       setChecking(false);
     };
     checkAuth();
   }, [navigate]);
 
-  const handleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  const handleJudgeLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoggingIn(true);
+
+    try {
+      // Simple credential check
+      if (email === JUDGE_EMAIL && password === JUDGE_PASSWORD) {
+        // Create session token
+        const sessionToken = 'judge_' + Date.now() + '_' + Math.random().toString(36);
+        localStorage.setItem('judge_session_token', sessionToken);
+        localStorage.setItem('judge_email', email);
+        
+        // Navigate to main app
+        navigate('/', { replace: true, state: { user: { email } } });
+      } else {
+        setError('Invalid email or password');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Login failed. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   if (checking) {
+    return (
+      <div className="min-h-screen bg-[#0B0B0F] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-white animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 p-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
+            <span className="text-3xl">🎓</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Live Code Mentor</h1>
+          <p className="text-white/60">Gemini 3 Hackathon - Judge Access</p>
+        </div>
+
+        {/* Login Form */}
+        <Card className="bg-white/10 backdrop-blur-xl border-white/20">
+          <CardHeader>
+            <CardTitle className="text-white">Judge Login</CardTitle>
+            <CardDescription className="text-white/60">
+              Sign in to access the demo application
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleJudgeLogin} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="judge@gemini3hackathon.dev"
+                    className="w-full pl-11 pr-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="w-full pl-11 pr-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/20 border border-red-500/30">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <p className="text-sm text-red-300">{error}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <Button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <User className="w-4 h-4 mr-2" />
+                    Sign In
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {/* Info */}
+            <div className="mt-6 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+              <p className="text-sm text-blue-300 text-center">
+                🏆 Hackathon Judges Access Only
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <p className="text-center text-white/40 text-sm mt-6">
+          Google DeepMind Gemini 3 Hackathon 2026
+        </p>
+      </div>
+    </div>
+  );
+}
     return (
       <div className="min-h-screen bg-[#0f0f10] flex items-center justify-center">
         <div className="text-zinc-400 flex items-center gap-2">
