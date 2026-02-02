@@ -2,7 +2,7 @@ import React from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/LoginPage";
-import SetupPage from "@/pages/SetupPage";
+import MainApp from "@/pages/MainApp";
 import AuthCallback from "@/pages/AuthCallback";
 import { Toaster } from "@/components/ui/sonner";
 
