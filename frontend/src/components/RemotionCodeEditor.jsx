@@ -23,6 +23,8 @@ const RemotionCodeEditor = ({
   const [isInstallingPackages, setIsInstallingPackages] = useState(false);
   const [installProgress, setInstallProgress] = useState(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [showFullCode, setShowFullCode] = useState(false);
   
   const editorRef = useRef(null);
 
