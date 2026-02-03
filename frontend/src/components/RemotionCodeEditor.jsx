@@ -236,6 +236,24 @@ const RemotionCodeEditor = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Show Full Code Toggle */}
+          <button
+            onClick={() => setShowFullCode(!showFullCode)}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm transition-all ${
+              showFullCode 
+                ? 'bg-cyan-600 hover:bg-cyan-700' 
+                : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+            title={showFullCode ? "Minimize code view" : "Show full code"}
+          >
+            {showFullCode ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+            <span>{showFullCode ? 'Minimize' : 'Show Full Code'}</span>
+          </button>
+
           {/* Package Status */}
           <button
             onClick={() => setShowPackages(!showPackages)}
