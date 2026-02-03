@@ -380,15 +380,28 @@ const RemotionCodeEditor = ({
         </div>
       )}
 
-      {/* Validation Errors */}
+      {/* Validation Errors - Collapsible */}
       {validation && !validation.is_valid && (
-        <div className="px-4 py-3 bg-red-900/20 border-b border-red-800">
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-red-400 flex items-center space-x-2">
+        <div className="px-4 py-2 bg-red-900/20 border-b border-red-800">
+          <button
+            onClick={() => setShowValidationErrors(!showValidationErrors)}
+            className="w-full flex items-center justify-between text-sm font-semibold text-red-400 hover:text-red-300 transition-colors"
+          >
+            <span className="flex items-center space-x-2">
               <AlertCircle className="w-4 h-4" />
-              <span>Validation Errors</span>
-            </h3>
-            <div className="space-y-1 max-h-32 overflow-y-auto">
+              <span>
+                {(validation.syntax_errors?.length || 0) + (validation.ai_errors?.length || 0)} Validation Errors
+              </span>
+            </span>
+            {showValidationErrors ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+          
+          {showValidationErrors && (
+            <div className="space-y-1 max-h-32 overflow-y-auto mt-2">
               {[...(validation.syntax_errors || []), ...(validation.ai_errors || [])].map((error, idx) => (
                 <div key={idx} className="text-xs text-red-300 flex items-start space-x-2">
                   <span className="text-red-500">•</span>
@@ -399,7 +412,7 @@ const RemotionCodeEditor = ({
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
       )}
 
