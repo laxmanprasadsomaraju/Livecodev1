@@ -456,6 +456,84 @@ const RemotionCodeEditor = ({
           </div>
         </div>
       )}
+
+      {/* Full Code Modal */}
+      {showFullCode && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-6 py-4 bg-gray-900 border-b border-gray-700">
+            <div className="flex items-center space-x-4">
+              <Code className="w-6 h-6 text-cyan-400" />
+              <span className="text-lg font-semibold text-white">Full Generated Code</span>
+              {videoConfig && (
+                <span className="text-xs px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300">
+                  {videoConfig.width}x{videoConfig.height} @ {videoConfig.fps}fps • {videoConfig.durationInFrames} frames
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={downloadCode}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm font-medium"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={() => setShowFullCode(false)}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium"
+              >
+                <X className="w-4 h-4" />
+                <span>Close</span>
+              </button>
+            </div>
+          </div>
+          
+          {/* Full Code Editor */}
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              defaultLanguage="typescript"
+              value={code}
+              onChange={handleCodeChange}
+              theme="vs-dark"
+              options={{
+                fontSize: 16,
+                minimap: { enabled: true, scale: 2 },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                wordWrap: 'on',
+                formatOnPaste: true,
+                formatOnType: true,
+                lineNumbers: 'on',
+                readOnly: false,
+              }}
+            />
+          </div>
+          
+          {/* Modal Footer */}
+          <div className="px-6 py-3 bg-gray-900 border-t border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-gray-400">
+                {code.split('\n').length} lines • Press ESC to close
+              </div>
+              <div className="flex items-center space-x-2">
+                {validation?.is_valid ? (
+                  <div className="flex items-center space-x-1 text-green-400 text-sm">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Code is valid</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1 text-yellow-400 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Code may have warnings (click Validate to check)</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
