@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { 
   Save, Play, AlertCircle, CheckCircle, Package, Download, 
-  RefreshCw, Loader2, Code, Eye, Zap, Terminal, Check, X
+  RefreshCw, Loader2, Code, Eye, Zap, Terminal, Check, X,
+  Maximize2, Minimize2, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
