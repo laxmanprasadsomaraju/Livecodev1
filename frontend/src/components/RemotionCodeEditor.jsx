@@ -52,6 +52,18 @@ const RemotionCodeEditor = ({
     checkInstalledPackages();
   }, [projectId]);
 
+  // Handle ESC key to close full code modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showFullCode) {
+        setShowFullCode(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showFullCode]);
+
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     
